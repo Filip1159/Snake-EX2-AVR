@@ -1,0 +1,2 @@
+package javax.microedition.lcdui;
+public class Graphics { public void setColor(int c){} public void fillRect(int a,int b,int c,int d){} public void drawImage(Image i,int a,int b,int c){} public void setClip(int a,int b,int c,int d){} public void clipRect(int a,int b,int c,int d){} public void drawString(String s,int a,int b,int c){} public void drawLine(int a,int b,int c,int d){} public void setFont(Font f){} public void translate(int a,int b){} }

@@ -1,0 +1,55 @@
+#!/bin/sh
+# Host unit tests (no hardware). Run from project root: sh test/host/run.sh
+set -e
+cd "$(dirname "$0")/../.."
+OUT=/tmp/opencode; mkdir -p $OUT
+F="-Wall -Wextra -I test/host -I src"
+g++ $F test/host/test_eeprom_store.cpp src/drivers/eeprom_store.cpp -o $OUT/t_eeprom && $OUT/t_eeprom
+g++ $F test/host/test_buttons.cpp src/drivers/buttons.cpp -o $OUT/t_buttons && $OUT/t_buttons
+[ -f build/assets/mazes_21x23.bin ] || { python3 tools/extract_snake_ex2.py && python3 tools/convert_assets.py; }
+g++ $F test/host/test_maze_field.cpp src/assets/maze.cpp src/assets/assets_gen.cpp src/render/field.cpp -o $OUT/t_maze && $OUT/t_maze
+g++ $F test/host/test_hud.cpp src/render/hud.cpp src/render/image.cpp src/assets/assets_gen.cpp -o $OUT/t_hud && $OUT/t_hud
+g++ $F test/host/test_menu.cpp src/ui/menu.cpp src/render/text.cpp -o $OUT/t_menu && $OUT/t_menu
+g++ $F test/host/test_settings.cpp src/ui/settings.cpp src/ui/menu.cpp src/render/text.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_settings && $OUT/t_settings
+g++ $F test/host/test_highscores.cpp src/ui/highscores.cpp src/ui/menu.cpp src/render/text.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_highscores && $OUT/t_highscores
+g++ $F test/host/test_pause.cpp src/ui/pause.cpp src/render/text.cpp -o $OUT/t_pause && $OUT/t_pause
+g++ $F -I test/host test/host/test_snake_sprites.cpp src/render/snake_sprites.cpp src/assets/assets_gen.cpp -o $OUT/t_spr && $OUT/t_spr
+# Oracle replay needs the traces produced from the decompiled original; regenerate when absent (requires a JDK).
+if [ ! -d build/oracle/traces ]; then
+    python3 tools/oracle/build_oracle.py --traces >/dev/null || echo "note: oracle traces unavailable (needs JDK) — skipping game_oracle"
+fi
+if [ -d build/oracle/traces ]; then
+    g++ $F -DFIELD_ROWS=18 test/host/test_game_oracle.cpp src/game/game.cpp -o $OUT/t_oracle && $OUT/t_oracle
+fi
+if [ ! -d build/oracle/traces_classic_all ]; then
+    python3 tools/oracle/build_oracle.py --classic-all >/dev/null || echo "note: all-combination oracle traces unavailable (needs JDK) — skipping"
+fi
+if [ -d build/oracle/traces_classic_all ]; then
+    g++ $F -DFIELD_ROWS=18 test/host/test_game_oracle.cpp src/game/game.cpp -o $OUT/t_oracle_all && \
+        $OUT/t_oracle_all build/oracle/traces_classic_all
+fi
+if [ ! -d build/oracle/traces_pu ]; then
+    python3 tools/oracle/build_oracle.py --pu-traces >/dev/null || echo "note: power-up oracle traces unavailable (needs JDK) — skipping powerup_oracle"
+fi
+if [ -d build/oracle/traces_pu ]; then
+    g++ $F -DFIELD_ROWS=18 test/host/test_powerup_oracle.cpp src/game/game.cpp -o $OUT/t_pu_oracle && $OUT/t_pu_oracle
+fi
+if [ ! -d build/oracle/traces_campaign ]; then
+    python3 tools/oracle/build_oracle.py --campaign-traces >/dev/null || echo "note: campaign oracle traces unavailable (needs JDK) — skipping extreme_oracle"
+fi
+if [ -d build/oracle/traces_campaign ]; then
+    g++ $F -DFIELD_ROWS=18 test/host/test_extreme_oracle.cpp src/game/game.cpp -o $OUT/t_ext_oracle && $OUT/t_ext_oracle
+fi
+if [ ! -d build/oracle/traces_campaign_natural ]; then
+    python3 tools/oracle/build_oracle.py --campaign-natural >/dev/null || echo "note: natural campaign traces unavailable (needs JDK) — skipping"
+fi
+if [ -d build/oracle/traces_campaign_natural ]; then
+    g++ $F -DFIELD_ROWS=18 test/host/test_powerup_oracle.cpp src/game/game.cpp -o $OUT/t_nat_oracle && \
+        $OUT/t_nat_oracle build/oracle/traces_campaign_natural
+fi
+g++ $F test/host/test_game_init.cpp src/game/game.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_init && $OUT/t_init
+g++ $F test/host/test_classic_select.cpp src/game/game.cpp src/game/classic.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_classic && $OUT/t_classic
+g++ $F test/host/test_tongue.cpp src/game/game.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_tongue && $OUT/t_tongue
+g++ $F test/host/test_powerup.cpp src/game/game.cpp -o $OUT/t_powerup && $OUT/t_powerup
+g++ $F test/host/test_extreme.cpp src/game/game.cpp -o $OUT/t_extreme && $OUT/t_extreme
+g++ $F test/host/test_playfield.cpp src/game/game.cpp src/render/playfield.cpp src/render/field.cpp src/render/sprite.cpp src/render/snake_sprites.cpp src/assets/assets_gen.cpp src/assets/maze.cpp -o $OUT/t_pf && $OUT/t_pf

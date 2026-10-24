@@ -1,0 +1,2 @@
+package javax.microedition.rms;
+public class RecordStore { public static RecordStore openRecordStore(String n,boolean c) throws Exception {throw new Exception();} public static void deleteRecordStore(String n) throws Exception {} public byte[] getRecord(int i) throws Exception {return null;} public void closeRecordStore() throws Exception {} public int addRecord(byte[] b,int o,int l) throws Exception {return 1;} public void setRecord(int i,byte[] b,int o,int l) throws Exception {} public int getNumRecords() throws Exception {return 0;} }
