@@ -1,6 +1,7 @@
-/* G6: tongue — Extreme only, reaches one and two cells ahead, never three, retracts on the
+/* G6: tongue — reaches one and two cells ahead in both Classic and Extreme, retracts on the
  * next movement tick, and wraps with the field. Mirrors b.java: J==0 + K[4] -> J=-1, the
- * next movement tick sets J=1, and the food checks accept (k,l) and (K,L) while J>0. */
+ * next movement tick sets J=1, and the food checks accept (k,l) and (K,L) while J>0.
+ * Deviation: enabled in Classic too (the original only exposed it in Extreme). */
 #include "assets/maze.h"
 #include "game/game.h"
 #include "config.h"
@@ -60,10 +61,16 @@ int main() {
     first_move(&g, KEY_FIRE);
     CHECK(!g.food_eaten);
 
-    /* Classic: FIRE must not extend a tongue */
+    /* Classic: FIRE extends the tongue and grabs food from a distance. */
     game_init(&g, 5, -1, nullptr);
     g.food_x = (int16_t)(g.qx + CELL_SIZE); g.food_y = g.qy;
     first_move(&g, KEY_FIRE);
+    CHECK(g.tongue == 1 && g.food_eaten && g.score == 6);
+
+    /* Classic but no fire: no tongue, no grab */
+    game_init(&g, 5, -1, nullptr);
+    g.food_x = (int16_t)(g.qx + CELL_SIZE); g.food_y = g.qy;
+    first_move(&g, 0);
     CHECK(g.tongue == 0 && !g.food_eaten);
 
     /* Extreme but no fire: no tongue, no grab */
@@ -87,7 +94,39 @@ int main() {
     first_move(&g, KEY_FIRE);
     CHECK(g.tongue == 1 && g.food_eaten);
 
+    /* Extreme campaign regression: the portal shrink sets ma=1, so after next_level()
+     * resets the periods the b and C counters are out of phase.  Pickup checks run on
+     * the C tick even when it is not a movement tick; the tongue reach must still be
+     * valid (original k/l and K/L are persistent fields, not locals reset each frame). */
+    game_init_mode(&g, 5, -1, nullptr, true);
+    g.cnt_b = 1;                                   /* -> 2, not a movement tick */
+    g.cnt_C = (uint8_t)(g.per_Na - 1);             /* -> 0, a pickup tick */
+    g.tongue = 1;
+    int16_t tfx = (int16_t)(g.qx + CELL_SIZE);
+    g.food_x = tfx; g.food_y = g.qy;
+    g.food_eaten = false;
+    g.score = 0;
+    game_tick(&g, 0);
+    CHECK(!g.moved);
+    CHECK(g.food_eaten);
+    CHECK(g.eaten_x == tfx && g.eaten_y == g.qy);
+    CHECK(g.score == 6);
+
+    /* Same cadence divergence for a field power-up: the tongue tip collects it. */
+    game_init_mode(&g, 5, -1, nullptr, true);
+    g.cnt_b = 1;
+    g.cnt_C = (uint8_t)(g.per_Na - 1);
+    g.tongue = 1;
+    g.food_x = g.food_y = -1;
+    g.pu[0].id = 3;
+    g.pu[0].life = 50;
+    g.pu[0].x = (uint8_t)(g.qx + CELL_SIZE);
+    g.pu[0].y = (uint8_t)g.qy;
+    game_tick(&g, 0);
+    CHECK(!g.moved);
+    CHECK(g.pu_active == 3);
+
     if (fails) { printf("tongue: %d FAILED\n", fails); return 1; }
-    printf("tongue: all passed (1/2-cell reach, no 3rd cell, retract, wrap, Classic gate)\n");
+    printf("tongue: all passed (1/2-cell reach, no 3rd cell, retract, wrap, Classic + Extreme)\n");
     return 0;
 }

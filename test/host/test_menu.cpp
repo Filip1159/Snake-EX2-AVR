@@ -35,7 +35,7 @@ static int non_bg(int x, int y, int w, int h, uint16_t bg) {
 }
 
 static int row_top(int item) {
-    return 26 + item * 29;
+    return 30 + item * 20;
 }
 
 static int changed_outside_rows(const uint16_t *a, const uint16_t *b,
@@ -44,8 +44,8 @@ static int changed_outside_rows(const uint16_t *a, const uint16_t *b,
     for (int y = 0; y < 160; y++) {
         for (int x = 0; x < 128; x++) {
             if (a[y * 128 + x] == b[y * 128 + x]) continue;
-            bool in_a = y >= row_top(row_a) && y < row_top(row_a) + 27;
-            bool in_b = y >= row_top(row_b) && y < row_top(row_b) + 27;
+            bool in_a = y >= row_top(row_a) && y < row_top(row_a) + 20;
+            bool in_b = y >= row_top(row_b) && y < row_top(row_b) + 20;
             if (!in_a && !in_b) bad++;
         }
     }
@@ -57,13 +57,24 @@ int main() {
     CHECK(text_width("A", 1) == 5);
     CHECK(text_width("ABC", 1) == 17);
     CHECK(text_width("ABC", 2) == 34);
+    CHECK(text_width("a", 1) == 5);
+    CHECK(text_width("Snake EX2", 1) == 53);
+
+    /* Lowercase glyphs are distinct from uppercase, not folded. */
+    memset(fb, 0xFF, sizeof fb);
+    text_draw(0, 0, "a", 1, 0x0000);
+    int lower_pixels = non_bg(0, 0, 5, 7, 0xFFFF);
+    memset(fb, 0xFF, sizeof fb);
+    text_draw(0, 0, "A", 1, 0x0000);
+    int upper_pixels = non_bg(0, 0, 5, 7, 0xFFFF);
+    CHECK(lower_pixels > 0 && upper_pixels > 0 && lower_pixels != upper_pixels);
 
     menu_init();
     CHECK(menu_selected() == MENU_ITEM_NEW_GAME);
-    CHECK(strcmp(menu_item_label(MENU_ITEM_NEW_GAME), "NEW GAME") == 0);
-    CHECK(strcmp(menu_item_label(MENU_ITEM_HIGH_SCORES), "HIGH SCORES") == 0);
-    CHECK(strcmp(menu_item_label(MENU_ITEM_SETTINGS), "SETTINGS") == 0);
-    CHECK(strcmp(menu_item_label(MENU_ITEM_INSTRUCTIONS), "INSTRUCTIONS") == 0);
+    CHECK(strcmp(menu_item_label(MENU_ITEM_NEW_GAME), "New game") == 0);
+    CHECK(strcmp(menu_item_label(MENU_ITEM_HIGH_SCORES), "High scores") == 0);
+    CHECK(strcmp(menu_item_label(MENU_ITEM_SETTINGS), "Settings") == 0);
+    CHECK(strcmp(menu_item_label(MENU_ITEM_INSTRUCTIONS), "Instructions") == 0);
 
     menu_move(-1);
     CHECK(menu_selected() == MENU_ITEM_INSTRUCTIONS);
@@ -74,20 +85,34 @@ int main() {
     menu_move(-1);
     CHECK(menu_selected() == MENU_ITEM_NEW_GAME);
 
-    /* Full 128×160 layout: header at the top, footer at the bottom, all four
-     * rows visible, and the selected row uses the highlight colour. */
+    /* Full 128×160 layout: status bar, title row, four 20 px list rows and
+     * Select/Exit soft keys. The selected row is the light-blue S40 band. */
     menu_init();
     menu_draw();
-    CHECK(fb[0][0] == 0x0000);
-    CHECK(fb[159][0] == 0x0000);
-    CHECK(fb[20][0] == 0xFFFF);
-    CHECK(fb[26][4] == 0x001F);          /* selected row, first item */
-    CHECK(fb[55][4] == 0xFFFF);          /* unselected row, second item */
-    CHECK(non_bg(12, 26 + 10, 100, 7, 0x001F) > 20);
-    CHECK(non_bg(12, 55 + 10, 100, 7, 0xFFFF) > 20);
-    CHECK(non_bg(12, 84 + 10, 100, 7, 0xFFFF) > 20);
-    CHECK(non_bg(12, 113 + 10, 100, 7, 0xFFFF) > 20);
-    CHECK(non_bg(0, 140, 128, 20, 0x0000) > 20);
+    CHECK(fb[0][0] == 0xFFFF);           /* status bar background */
+    CHECK(fb[14][0] == 0xFFFF);          /* title-row background */
+    CHECK(fb[30][0] == 0x6CFD);          /* selected row starts at y=30 */
+    CHECK(fb[49][0] == 0x6CFD);          /* selected row is 20 px high */
+    CHECK(fb[50][0] == 0xFFFF);          /* second row, unselected */
+    CHECK(fb[70][0] == 0xFFFF);          /* third row */
+    CHECK(fb[90][0] == 0xFFFF);          /* fourth row */
+    CHECK(fb[141][0] == 0xFFFF);         /* soft-key area */
+    CHECK(fb[159][0] == 0xFFFF);
+    CHECK(fb[30][127] == 0x6CFD);        /* selected band is full width */
+    CHECK(fb[49][127] == 0x6CFD);
+
+    CHECK(non_bg(0, 0, 128, 14, 0xFFFF) > 20);       /* signal/battery/time */
+    CHECK(non_bg(0, 14, 128, 16, 0xFFFF) > 20);      /* title and leaders */
+    CHECK(non_bg(4, 30 + 7, 110, 7, 0x6CFD) > 20); /* New game */
+    CHECK(non_bg(4, 50 + 7, 110, 7, 0xFFFF) > 20);   /* High scores */
+    CHECK(non_bg(4, 70 + 7, 110, 7, 0xFFFF) > 20);   /* Settings */
+    CHECK(non_bg(4, 90 + 7, 110, 7, 0xFFFF) > 20);   /* Instructions */
+    CHECK(non_bg(0, 140, 128, 20, 0xFFFF) > 20);     /* soft keys + rule */
+
+    /* The selected row has no dotted leader; the other rows do. */
+    CHECK(non_bg(55, 40, 69, 1, 0x6CFD) == 0);
+    CHECK(non_bg(55, 60, 69, 1, 0xFFFF) > 5);
+    CHECK(non_bg(79, 100, 45, 1, 0xFFFF) > 5);
 
     /* Incremental navigation: move from New game to High scores by repainting
      * only the two affected rows. The result must match a full redraw, and the
@@ -101,8 +126,8 @@ int main() {
         menu_draw_item(menu_selected());
     }
     CHECK(fill_screen_calls == 0);
-    CHECK(fb[26][4] == 0xFFFF);
-    CHECK(fb[55][4] == 0x001F);
+    CHECK(fb[30][0] == 0xFFFF);
+    CHECK(fb[50][0] == 0x6CFD);
     memcpy(incremental, fb, sizeof fb);
     menu_draw();
     CHECK(memcmp(incremental, fb, sizeof fb) == 0);
@@ -110,7 +135,7 @@ int main() {
                                MENU_ITEM_NEW_GAME, MENU_ITEM_HIGH_SCORES) == 0);
 
     /* Wrapping from the first row to the last row must also repaint only those
-     * two rows, and must not overwrite the footer with a row rule. */
+     * two rows, and must not overwrite the soft-key rule or status bar. */
     menu_init();
     menu_draw();
     memcpy(before, fb, sizeof fb);
@@ -123,9 +148,11 @@ int main() {
     }
     CHECK(fill_screen_calls == 0);
     CHECK(menu_selected() == MENU_ITEM_INSTRUCTIONS);
-    CHECK(fb[26][4] == 0xFFFF);
-    CHECK(fb[113][4] == 0x001F);
-    CHECK(fb[140][0] == 0x0000);
+    CHECK(fb[30][0] == 0xFFFF);
+    CHECK(fb[90][0] == 0x6CFD);
+    CHECK(fb[0][0] == 0xFFFF);
+    CHECK(fb[140][0] == 0x6CFD);       /* soft-key rule unchanged */
+    CHECK(fb[141][0] == 0xFFFF);
     memcpy(incremental, fb, sizeof fb);
     menu_draw();
     CHECK(memcmp(incremental, fb, sizeof fb) == 0);

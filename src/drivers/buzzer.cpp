@@ -1,177 +1,161 @@
 /**
  * buzzer.cpp — Buzzer Driver
  *
- * Active buzzer on PB0 via NPN low-side switch.
- * Non-blocking: starts a tone, then each buzzer_update() call
- * decrements the duration counter.
+ * Active buzzer on PB0 via an NPN low-side switch: the note sequence gates the
+ * pin on/off.  Passive piezo on the same pin: Timer2 CTC toggles PB0 at the
+ * decoded note frequency.
  *
- * Passive piezo support (Timer0 CTC) is stubbed — enable via
- * FEATURE_PASSIVE_BUZZER in config.h.
+ * The decoded Nokia RTPL table is in assets/sounds_gen.*.  Notes are timed
+ * against millis(), so playback is non-blocking and does not drift with the
+ * main-loop rate.  A new buzzer_play() call restarts the single channel.
  *
- * BACKLOG.MD §5 D4.
+ * Timer choice: the Arduino core owns Timer0 for millis(), so the passive
+ * output uses Timer2 (8-bit, prescaler 64).  Timer1 is reserved for the
+ * 15 fps scheduler documented in BACKLOG §4.4.
+ *
+ * BACKLOG.MD §5 D4, S1, S2.
  */
 #include "drivers/buzzer.h"
+#include "assets/sounds_gen.h"
 #include "hal/gpio.h"
 #include "config.h"
 #include <Arduino.h>
-#include <string.h>
+#include <avr/pgmspace.h>
+#include <stdint.h>
+
+#if defined(__AVR__)
 #include <avr/io.h>
 #include <avr/interrupt.h>
+#endif
 
-static bool s_muted = false;
+/* Timer2 CTC clock: F_CPU / 64.  Square-wave frequency = tick / (2*(OCR+1)). */
+#define BUZZER_PRESCALER   64
+#define BUZZER_TIMER_HZ    (F_CPU / BUZZER_PRESCALER)
 
-/* Currently playing tone */
-static struct {
-    bool    active;
-    uint8_t sound_id;
-    uint8_t step;
-    uint16_t duration;    // ms remaining
-    uint16_t note_duration;
-    uint16_t frequency;   // Hz (unused in active mode)
-} s_tone;
+static bool          s_muted;
+static bool          s_active;
+static buzzer_mode_t s_mode;
+static uint8_t       s_sound;
+static uint8_t       s_step;
+static uint16_t      s_note_hz;
+static uint32_t      s_next_ms;
 
-/* ── Tone sequence table (simplified mapping) ────────────────────────────
- *
- * Each entry: {duration_ms, frequency_hz}
- * The active buzzer only uses duration; frequency is for passive mode.
- * Sequences are placeholders until sounds.nok is decoded (A1).
- * BACKLOG.MD §1.3.
- */
-typedef struct {
-    uint8_t duration_ms;
-    uint16_t frequency_hz;
-} tone_step_t;
+/* ── Table helpers ──────────────────────────────────────────────────────── */
 
-typedef struct {
-    uint8_t       step_count;
-    tone_step_t   steps[4];  // max 4 notes per SFX
-} tone_seq_t;
+static uint16_t seq_offset(uint8_t id) {
+    return pgm_read_word(&SOUND_SEQ_OFFSET[id]);
+}
 
-static const tone_seq_t PROGMEM s_sfx_table[] = {
-    //  0: eat/collect
-    {1, {{50,  880}}},
-    //  1: speed-up
-    {2, {{30, 1200}, {30, 1600}}},
-    //  2: ghost
-    {1, {{30,  660}}},
-    //  3: wall-stamp
-    {1, {{60,  440}}},
-    //  4: shrink
-    {1, {{30,  550}}},
-    //  5: grow
-    {1, {{30, 1100}}},
-    //  6: moving-food
-    {1, {{30,  990}}},
-    //  7: bonus-boost
-    {2, {{40, 1400}, {40, 1760}}},
-    //  8: coin-rush
-    {1, {{20, 1760}}},
-    //  9: lights-out
-    {1, {{40,  330}}},
-    // 10: coin collected
-    {1, {{10, 2000}}},
-    // 11: death
-    {3, {{80, 440}, {80, 330}, {80, 220}}},
-    // 12: beep (synthetic)
-    {1, {{100, 1760}}},
-};
+static uint8_t seq_len(uint8_t id) {
+    return pgm_read_byte(&SOUND_SEQ_LEN[id]);
+}
+
+static uint16_t note_freq(uint16_t index) {
+    return pgm_read_word(&SOUND_NOTE_FREQ[index]);
+}
+
+static uint8_t note_ms(uint16_t index) {
+    return pgm_read_byte(&SOUND_NOTE_MS[index]);
+}
+
+/* ── Hardware ───────────────────────────────────────────────────────────── */
+
+uint8_t buzzer_ocr_for_hz(uint16_t hz) {
+    if (hz == 0) return 0;
+    /* Round tick/(2*hz) to the nearest compare value.  Values above the
+     * 8-bit Timer2 range are clamped; below the audible range is a pause. */
+    uint32_t n = ((uint32_t)BUZZER_TIMER_HZ / 2u + hz / 2u) / hz;
+    if (n < 2u) return 0;
+    if (n > 256u) n = 256u;
+    return (uint8_t)(n - 1u);
+}
+
+static void tone_start(uint16_t hz, uint8_t ms) {
+    s_note_hz = hz;
+    s_next_ms = millis() + ms;
+
+#if defined(__AVR__)
+    uint8_t ocr = (s_mode == BUZZER_MODE_PASSIVE) ? buzzer_ocr_for_hz(hz) : 0;
+    if (ocr != 0) {
+        /* Passive piezo: Timer2 CTC toggles PB0 in the ISR. */
+        TCCR2A = (1 << WGM21);
+        TCCR2B = (1 << CS22);           /* prescaler 64 */
+        OCR2A  = ocr;
+        TCNT2  = 0;
+        TIMSK2 = (1 << OCIE2A);
+        return;
+    }
+    /* Active buzzer, or a pause in passive mode: stop the timer and gate PB0. */
+    TCCR2A = 0;
+    TCCR2B = 0;
+    TIMSK2 = 0;
+#endif
+
+    if (hz == 0) buzzer_off();
+    else         buzzer_on();
+}
+
+/* ── Public API ─────────────────────────────────────────────────────────── */
 
 void buzzer_init(void) {
-    s_tone.active = false;
-    s_tone.duration = 0;
-    s_tone.step = 0;
-    s_muted = false;
-
+    s_muted  = false;
+    s_active = false;
+    s_sound  = 0;
+    s_step   = 0;
+    s_note_hz = 0;
+    s_next_ms = 0;
 #if FEATURE_PASSIVE_BUZZER
-    // Timer0 CTC mode for square wave generation
-    // Will be configured on first play
-    TCCR0 = 0;  // stop timer
+    s_mode = BUZZER_MODE_PASSIVE;
+#else
+    s_mode = BUZZER_MODE_ACTIVE;
 #endif
+    buzzer_stop();
 }
 
 void buzzer_play(uint8_t sound_id) {
-    if (sound_id >= 13 || s_muted) return;
+    if (sound_id >= SOUND_BANK_COUNT || s_muted) return;
 
-    s_tone.active = true;
-    s_tone.sound_id = sound_id;
-    s_tone.step = 0;
-    s_tone.duration = 0;
+    s_active = true;
+    s_sound  = sound_id;
+    s_step   = 0;
 
-    tone_seq_t seq;
-    memcpy_P(&seq, &s_sfx_table[sound_id], sizeof(tone_seq_t));
-
-    if (seq.step_count > 0) {
-        s_tone.note_duration = seq.steps[0].duration_ms;
-        s_tone.duration = seq.steps[0].duration_ms;
-        s_tone.frequency = seq.steps[0].frequency_hz;
+    uint16_t index = seq_offset(sound_id);
+    if (seq_len(sound_id) == 0) {
+        buzzer_stop();
+        return;
     }
-
-#if FEATURE_PASSIVE_BUZZER
-    // Configure Timer0 for CTC square wave
-    if (s_tone.frequency > 0) {
-        // OCR0 = F_CPU / (2 * prescaler * freq) - 1
-        // Use prescaler 8: 16M / 8 = 2M
-        uint16_t ocr = (F_CPU / 8 / s_tone.frequency) - 1;
-        if (ocr > 255) ocr = 255;
-        OCR0 = (uint8_t)ocr;
-        TCCR0 = (1 << WGM01) | (1 << CS01);  // CTC, prescaler 8
-        TIMSK |= (1 << OCIE0);   // enable compare match interrupt
-    }
-#else
-    // Active buzzer: just turn on
-    buzzer_on();
-#endif
+    tone_start(note_freq(index), note_ms(index));
 }
 
 void buzzer_update(void) {
-    if (!s_tone.active || s_tone.duration == 0) return;
+    if (!s_active) return;
+    /* Wrap-safe: advance only when the deadline has passed. */
+    if ((int32_t)(millis() - s_next_ms) < 0) return;
 
-    // Decrement by frame period (assumes ~66ms per frame at 15fps)
-    // For more precise timing, use millis() in a future timer HAL
-    if (s_tone.duration > 16) {
-        s_tone.duration -= 16;
-    } else {
-        s_tone.duration = 0;
+    s_step++;
+    if (s_step >= seq_len(s_sound)) {
+        buzzer_stop();
+        return;
     }
 
-    if (s_tone.duration == 0) {
-        // Advance to next note
-        s_tone.step++;
-
-        tone_seq_t seq;
-        memcpy_P(&seq, &s_sfx_table[s_tone.sound_id], sizeof(tone_seq_t));
-
-        if (s_tone.step < seq.step_count) {
-            s_tone.note_duration = seq.steps[s_tone.step].duration_ms;
-            s_tone.duration = seq.steps[s_tone.step].duration_ms;
-            s_tone.frequency = seq.steps[s_tone.step].frequency_hz;
-
-#if FEATURE_PASSIVE_BUZZER
-            // Update frequency
-            uint16_t ocr = (F_CPU / 8 / s_tone.frequency) - 1;
-            if (ocr > 255) ocr = 255;
-            OCR0 = (uint8_t)ocr;
-#endif
-        } else {
-            // Sequence done
-            buzzer_stop();
-        }
-    }
+    uint16_t index = seq_offset(s_sound) + s_step;
+    tone_start(note_freq(index), note_ms(index));
 }
 
 void buzzer_stop(void) {
-    s_tone.active = false;
-    s_tone.duration = 0;
-    buzzer_off();
-
-#if FEATURE_PASSIVE_BUZZER
-    TCCR0 = 0;                  // stop timer
-    TIMSK &= ~(1 << OCIE0);     // disable interrupt
+    s_active  = false;
+    s_step    = 0;
+    s_note_hz = 0;
+#if defined(__AVR__)
+    TCCR2A = 0;
+    TCCR2B = 0;
+    TIMSK2 = 0;
 #endif
+    buzzer_off();
 }
 
 bool buzzer_is_playing(void) {
-    return s_tone.active;
+    return s_active;
 }
 
 void buzzer_mute(bool mute) {
@@ -183,10 +167,22 @@ bool buzzer_is_muted(void) {
     return s_muted;
 }
 
-#if FEATURE_PASSIVE_BUZZER
-/** Timer0 compare match: toggle buzzer pin for square wave. */
-ISR(TIMER0_COMP_vect) {
-    // Toggle PB0
-    PINB |= (1 << PB0);  // writing 1 to PIN toggles the bit
+void buzzer_set_mode(buzzer_mode_t mode) {
+    if (mode != s_mode) buzzer_stop();
+    s_mode = mode;
+}
+
+buzzer_mode_t buzzer_get_mode(void) {
+    return s_mode;
+}
+
+uint16_t buzzer_note_frequency(void) {
+    return s_active ? s_note_hz : 0;
+}
+
+#if defined(__AVR__)
+/** Timer2 compare match: toggle PB0 for the passive piezo square wave. */
+ISR(TIMER2_COMPA_vect) {
+    PORTB ^= (1 << PB0);
 }
 #endif

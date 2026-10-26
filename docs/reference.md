@@ -153,14 +153,14 @@ Implementation notes:
 - Wall-stamp placement checks the portal using the same cell-vs-pixel quirk.
 - Coin rush (`Aa == 8`) suppresses portal spawning. Existing portals remain rendered while the snake shrinks.
 - The original decrements the general power-up timer `ba` whenever `Aa` is not 5–9, **including `Aa == 0`**. This matters after an expired slot briefly sets `Aa=15` and the HUD pass clears it; the port matches that countdown.
-- Rendering uses the 10×10 `SnakeCanvas.c` sprite at screen `(X-1, y-2)` (field origin `+1`, so `cell - 2`). Portal appearance and entry repaint only dirty cells; entry (`Y=1→2`) does not change pixels. The renderer also supports local removal, but in the engine the portal only disappears at a level reset, which full-repaints. Level reset is the only full-field repaint.
+- Rendering uses the 10×10 `SnakeCanvas.c` sprite at screen `(X-1, y-2)` (field origin `+1`, so `cell - 2`). Portal appearance and entry repaint only dirty cells; entry (`Y=1→2`) hides the head (original `!W || Y != 2 || n7 != A-1`) so the snake appears to enter the portal, and the renderer repaints the head cell locally. The renderer also supports local removal, but in the engine the portal only disappears at a level reset, which full-repaints. Level reset is the only full-field repaint.
 - The derived 21×23 field keeps the original 2-cell margins; portal spawn rows are therefore `2..FIELD_ROWS-3` and the cell spawner uses `FIELD_ROWS-4` for its random range.
 
 Verification:
 - `test/host/test_extreme.cpp`: threshold equality/just-above, spawn bounds/fallback/wall/coin rejection, coin-rush suppression, head-only entry, speed/ghost/lights/stamp deactivate ordering, one-segment-per-tick shrink, level reset, all six mazes, preserved fields, moving-bonus bounce, and Classic gating.
 - `test/host/test_extreme_oracle.cpp` + `tools/oracle/build_oracle.py --campaign-traces`: 9 forced-campaign traces, **180,000 ticks**, comparing base engine state, all snake segments, `x/z/Y/X/y`, maze and map bytes — 0 mismatches.
 - The same parser also replays `--campaign-natural` (12 traces, **28,481 ticks**) generated with the power-up-seeking bot at `z=0`; these include natural portal spawns/entries, power-ups, shrinking and multiple level transitions — 0 mismatches.
-- `test/host/test_playfield.cpp` compares portal appearance/move/entry/removal/edge/head-overlap against a fresh full redraw; all renderer-level cases use local repaints.
+- `test/host/test_playfield.cpp` compares portal appearance/move/entry/removal/edge/head-overlap against a fresh full redraw, checks that the head cell is portal-only during shrink, and verifies the incremental entry path erases the head; all renderer-level cases use local repaints.
 
 Classic selection (G9):
 - `game_init_classic()` accepts maze `-1` (No maze) or `0..4` (Box, Tunnel, Spiral,
@@ -179,26 +179,33 @@ Classic selection (G9):
   while the project/backlog uses six (`0..5`). The engine formula already handles 0..8;
   D12 records six for U2 unless the selector is expanded.
 
-Current ATmega644PA build: **RAM 1,878 / 4,096 B (45.8%), flash 45,414 / 65,536 B (69.3%, 20,122 B free)**.
+Current ATmega644PA build: **RAM 1,938 / 4,096 B (47.3%), flash 48,946 / 65,536 B (74.7%, 16,590 B free)**.
 The G9 `ATmega644PA_classic` preset environment was removed in U1; New game now starts from
 saved EEPROM settings (default Classic/no maze/speed 2) through `game_init_classic()`.
 
 Title/menu (U1):
-- Cold boot calls `title_draw()` (original 128×128 art at y=16, top/bottom bands filled
-  with its edge colours), adds a centred “PRESS ANY KEY” prompt, and advances after 3 s
-  idle or any button press.
-- `src/ui/menu.{h,cpp}` draws the full 128×160 menu: a 20 px header, four 27 px rows
-  (New game / High scores / Settings / Instructions) and a 20 px soft-key footer.
+- Cold boot calls `title_draw()` (original 128×128 art at y=16) and advances after 3 s
+  idle or any button press. The surrounding bands use the S40 title-screen blue
+  (`TITLE_BG_COLOR`); the 16 px band below the art contains two silver trophies and a
+  centred `OPTIONS` button, approximating the supplied Nokia reference screenshot.
+- `src/ui/menu.{h,cpp}` reconstructs the S40 `List` screen at 128×160: a 14 px
+  decorative status bar (signal bars, battery, static `22:22` time), a 16 px
+  `Snake EX2` title row with a dotted leader and list indicator `1`, four 20 px
+  mixed-case rows (New game / High scores / Settings / Instructions) with dotted
+  leaders, and a 20 px soft-key row with `Select`/`Exit`. The selected row is a
+  full-width light-blue band with dark text, matching the reference screenshot.
   Up/Left selects the previous item, Down/Right the next (wrapping), Fire selects, and
   Pause returns to the title. Selection moves repaint only the old and new rows;
   the full menu is drawn only on entry (or after returning from an info screen).
-  High scores, Settings and Instructions currently open labelled “COMING SOON” screens
-  with Fire/Pause back; U3/U2/U5 replace their content.
-- `src/render/text.{h,cpp}` provides the shared 5×7 font (`text_draw`/`text_width`).
-  `test/host/test_menu.cpp` verifies labels, wrapping, text metrics, row colours and that
-  the header, all four rows, and the footer are rendered. It also compares partial
-  two-row navigation with a full redraw for adjacent and wrapping moves, and checks that
-  navigation performs no `fill_screen()` call.
+  The status-bar clock is decorative because the port has no RTC.
+- `src/render/text.{h,cpp}` provides the shared fixed-pitch 5×7 font
+  (`text_draw`/`text_width`). It now includes lowercase glyphs (5-row x-height) so the
+  S40-style mixed-case labels render correctly; other screens continue to use uppercase.
+  `test/host/test_menu.cpp` verifies labels, wrapping, text metrics, lowercase glyphs,
+  status/title/row/soft-key layout, row colours and that the selected row has no dotted
+  leader. It also compares partial two-row navigation with a full redraw for adjacent and
+  wrapping moves, and checks that navigation performs no `fill_screen()` call.
+- `test/host/test_hud.cpp` verifies the title art and the new trophy/Options chrome.
 - The old boot self-test is no longer run; its drivers were already hardware-verified and
   remain covered by the host tests.
 
@@ -260,8 +267,13 @@ Instructions/tutorial (U5):
     - -8 High Score: Classic/No maze/speed 5, auto-plays to get score, shows entry
   - Each demo initializes the game, sets the relevant state, runs for several
     seconds, and returns to the demo menu.
-  - `test/host/test_instructions.cpp` (to be added) will verify page navigation
-    and demo launch logic.
+  - Input ownership: `main.cpp` owns the button event queue and passes the
+    already-dequeued event to `instructions_handle_input(ev, btn)`. The handler
+    must not call `buttons_get_event()` itself; doing so discarded the first
+    event and left the tutorial stuck on the first page.
+  - `test/host/test_instructions.cpp` verifies page/demo-menu navigation,
+    press/repeat/release handling, the Fire/Pause exit path, and that the handler
+    never drains the button queue.
 
 ## Reproduction (fresh checkout)
 

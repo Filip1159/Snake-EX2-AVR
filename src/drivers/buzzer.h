@@ -2,10 +2,12 @@
  * buzzer.h — Buzzer Driver
  *
  * Active buzzer mode: GPIO on/off with minimum pulse.
- * Passive piezo mode: Timer0 CTC square wave with note table.
- * Non-blocking: start a tone, service it in the main loop.
+ * Passive piezo mode: Timer2 CTC square wave with the decoded Nokia tone table.
+ * Non-blocking: start a sequence, service it from the main loop.
  *
- * BACKLOG.MD §1.3, §5 D4.
+ * Sound IDs match the original playSFX(0..12) (BACKLOG §1.3, §5 S1/S2).
+ * The sequences live in assets/sounds_gen.* and are generated from
+ * reference/sounds.nok by tools/gen_sounds.py.
  */
 #ifndef DRIVERS_BUZZER_H
 #define DRIVERS_BUZZER_H
@@ -32,19 +34,28 @@ extern "C" {
 #define SFX_HIGH_SCORE    11
 #define SFX_BEEP          12
 
-/** Initialize buzzer. Configures Timer0 for passive mode if enabled. */
+/** Output hardware.  Active = fixed-pitch gated buzzer; passive = piezo
+ *  driven by Timer2.  The default comes from FEATURE_PASSIVE_BUZZER. */
+typedef enum {
+    BUZZER_MODE_ACTIVE = 0,
+    BUZZER_MODE_PASSIVE = 1
+} buzzer_mode_t;
+
+/** Initialize buzzer.  Stops any tone and selects the compile-time default mode. */
 void buzzer_init(void);
 
 /**
  * Play a sound effect (non-blocking).
- * Starts the tone and returns immediately.
- * Call buzzer_update() each frame to advance it.
+ * Starts the first note and returns immediately.  A new call restarts the
+ * monophonic channel (the original plays several Sound objects at once; the
+ * AVR port deliberately has one channel — Tier C).
+ * Call buzzer_update() each frame/loop to advance it.
  */
 void buzzer_play(uint8_t sound_id);
 
 /**
- * Update the buzzer state. Call once per frame.
- * Handles tone duration, note transitions, and auto-off.
+ * Update the buzzer state.  Call once per main-loop iteration.
+ * Advances to the next note when the current note's duration has elapsed.
  */
 void buzzer_update(void);
 
@@ -57,6 +68,19 @@ bool buzzer_is_playing(void);
 /** Enable/disable sound output. */
 void buzzer_mute(bool mute);
 bool buzzer_is_muted(void);
+
+/** Select active or passive output hardware at runtime. */
+void buzzer_set_mode(buzzer_mode_t mode);
+buzzer_mode_t buzzer_get_mode(void);
+
+/** Current note frequency in Hz (0 = pause or stopped).  For tests/diagnostics. */
+uint16_t buzzer_note_frequency(void);
+
+/**
+ * Timer2 compare value for a square wave of hz (0 = pause / out of range).
+ * Uses the fixed prescaler and F_CPU; exposed for host tests.
+ */
+uint8_t buzzer_ocr_for_hz(uint16_t hz);
 
 #ifdef __cplusplus
 }

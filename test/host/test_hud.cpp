@@ -47,9 +47,13 @@ int main() {
 
     title_draw();
     CHECK(diff(title, 128, 0, 0, TITLE_X, TITLE_Y, 128, 128) == 0);
-    CHECK(fb[0][0] == TITLE_TOP_COLOR && fb[15][127] == TITLE_TOP_COLOR);
-    CHECK(fb[144][0] == TITLE_BOTTOM_COLOR && fb[159][127] == TITLE_BOTTOM_COLOR);
+    CHECK(fb[0][0] == TITLE_BG_COLOR && fb[15][127] == TITLE_BG_COLOR);
+    CHECK(fb[144][0] == TITLE_BG_COLOR && fb[159][127] == TITLE_BG_COLOR);
     CHECK(at(title, 128, 0, 0) == TITLE_TOP_COLOR && at(title, 128, 5, 127) == TITLE_BOTTOM_COLOR);
+    CHECK(fb[146][9] == 0x0010);          /* left trophy cup outline */
+    CHECK(fb[146][111] == 0x0010);        /* right trophy cup outline */
+    CHECK(fb[146][36] == 0x8410);         /* Options button top edge */
+    CHECK(fb[148][44] == 0x0010);         /* Options label */
 
     memset(fb, 0, sizeof fb);
     hud_draw_bar();

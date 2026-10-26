@@ -7,6 +7,7 @@
 #include "drivers/buttons.h"
 #include "ui/menu.h"
 #include "ui/highscores.h"
+#include "drivers/eeprom_store.h"
 #include "game/game.h"
 #include "game/classic.h"
 #include "game/rng.h"
@@ -57,6 +58,26 @@ static const int8_t demo_ids[8] = {
     DEMO_POWERUP_GHOST, DEMO_POWERUP_COIN, DEMO_POWERUP_LIGHTS, DEMO_HIGHSCORE
 };
 
+/* Demo loops bypass main.cpp, so service the game's SFX mask and the
+ * non-blocking buzzer here (same rules as the main loop). */
+static void demo_service_audio(void) {
+    if (s_game.sfx_mask && eeprom_get_settings()->sound_on) {
+        for (uint8_t id = 0; id < SFX_COUNT; id++) {
+            if (s_game.sfx_mask & SFXBIT(id)) { buzzer_play(id); break; }
+        }
+    }
+    if (buzzer_is_playing()) buzzer_update();
+}
+
+/* delay() busy-waits without servicing the buzzer; keep notes advancing. */
+static void demo_delay(uint32_t ms) {
+    uint32_t start = millis();
+    while ((uint32_t)(millis() - start) < ms) {
+        if (buzzer_is_playing()) buzzer_update();
+        delay(2);
+    }
+}
+
 /* ── State ────────────────────────────────────────────────────────────────── */
 
 static int8_t s_inst_page;       // 0..11 = text page, 12 = demo menu
@@ -79,8 +100,20 @@ static void inst_draw_page(int8_t page) {
     /* Text page */
     const char *text = inst_get_text(page);
 
-    /* Draw title bar */
+    /* Draw title bar.  The page indicator sits at the right of the title so it
+     * cannot overlap the navigation hint at the bottom of the page. */
     text_draw(4, 4, "INSTRUCTIONS", 1, 0xFFFF);
+    {
+        char pg_str[8];
+        pg_str[0] = '0' + (page + 1) / 10;
+        pg_str[1] = '0' + (page + 1) % 10;
+        pg_str[2] = '/';
+        pg_str[3] = '1';
+        pg_str[4] = '2';
+        pg_str[5] = '\0';
+        uint8_t pg_w = text_width(pg_str, 1);
+        text_draw((uint8_t)(128 - pg_w - 4), 4, pg_str, 1, 0x8410);
+    }
     st7735_fill_rect(0, 14, 128, 1, 0x4208);
 
     /* Word-wrap and draw text */
@@ -117,17 +150,6 @@ static void inst_draw_page(int8_t page) {
         }
     }
 
-    /* Page indicator */
-    char pg_str[8];
-    pg_str[0] = '0' + (page + 1) / 10;
-    pg_str[1] = '0' + (page + 1) % 10;
-    pg_str[2] = '/';
-    pg_str[3] = '1';
-    pg_str[4] = '2';
-    pg_str[5] = '\0';
-    uint8_t pg_w = text_width(pg_str, 1);
-    text_draw((uint8_t)((128 - pg_w) / 2), 148, pg_str, 1, 0x4208);
-
     /* Navigation hint */
     text_draw(4, 148, "UD: PAGE  LR: DEMOS", 1, 0x4208);
 }
@@ -156,8 +178,6 @@ static void inst_draw_demo_menu(void) {
 static void demo_run_tongue(void) {
     /* Demo -1: Tongue. Classic mode, Box maze, slow speed, food placed 2 cells ahead. */
     game_init_classic(&s_game, 1, 0, s_map); // Box maze, speed 1 (slow)
-    s_game.extreme = false;
-    s_game.tongue = true; // Enable tongue in this demo
 
     /* Place food 2 cells ahead of head */
     s_game.food_x = s_game.qx + 12; // 2 cells = 12 pixels
@@ -173,21 +193,26 @@ static void demo_run_tongue(void) {
     s_hud_pu = 0xFF;
     hud_refresh();
 
-    /* Auto-play: wait a moment, then FIRE to show tongue */
-    delay(1500);
-    s_game.tongue = 1; // Extend tongue
+    /* Auto-play: wait a moment, then press FIRE to extend the tongue. */
+    demo_delay(1500);
+    bool fired = false;
 
     /* Run until food eaten or timeout */
     uint32_t start = millis();
     while (millis() - start < 10000) {
         uint8_t keys = 0;
+        if (!fired) {
+            keys = KEY_FIRE;
+            fired = true;
+        }
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
+        demo_service_audio();
         if (s_game.len > 6) break; // Food eaten
-        delay(FRAME_MS);
+        demo_delay(FRAME_MS);
     }
-    delay(1000);
+    demo_delay(1000);
 }
 
 static void demo_run_walls(void) {
@@ -211,10 +236,11 @@ static void demo_run_walls(void) {
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
+        demo_service_audio();
         if (s_game.game_over) break;
-        delay(FRAME_MS);
+        demo_delay(FRAME_MS);
     }
-    delay(1000);
+    demo_delay(1000);
 }
 
 static void demo_run_bonus_food(void) {
@@ -245,10 +271,11 @@ static void demo_run_bonus_food(void) {
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
+        demo_service_audio();
         if (s_game.bonus == 0) break;
-        delay(FRAME_MS);
+        demo_delay(FRAME_MS);
     }
-    delay(1000);
+    demo_delay(1000);
 }
 
 static void demo_run_speed(void) {
@@ -279,9 +306,10 @@ static void demo_run_speed(void) {
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
-        delay(FRAME_MS);
+        demo_service_audio();
+        demo_delay(FRAME_MS);
     }
-    delay(1000);
+    demo_delay(1000);
 }
 
 static void demo_run_ghost(void) {
@@ -310,9 +338,10 @@ static void demo_run_ghost(void) {
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
-        delay(FRAME_MS);
+        demo_service_audio();
+        demo_delay(FRAME_MS);
     }
-    delay(1000);
+    demo_delay(1000);
 }
 
 static void demo_run_coin_rush(void) {
@@ -347,9 +376,10 @@ static void demo_run_coin_rush(void) {
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
-        delay(FRAME_MS);
+        demo_service_audio();
+        demo_delay(FRAME_MS);
     }
-    delay(1000);
+    demo_delay(1000);
 }
 
 static void demo_run_lights_out(void) {
@@ -379,9 +409,10 @@ static void demo_run_lights_out(void) {
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
-        delay(FRAME_MS);
+        demo_service_audio();
+        demo_delay(FRAME_MS);
     }
-    delay(1000);
+    demo_delay(1000);
 }
 
 static void demo_run_highscore(void) {
@@ -405,14 +436,15 @@ static void demo_run_highscore(void) {
         game_tick(&s_game, keys);
         playfield_update(&s_game, &s_cache);
         hud_refresh();
+        demo_service_audio();
         if (s_game.game_over) break;
-        delay(FRAME_MS);
+        demo_delay(FRAME_MS);
     }
 
     if (s_game.game_over && highscores_qualifies(s_game.score, s_game.extreme)) {
         highscores_maybe_enter(s_game.score, s_game.extreme);
     }
-    delay(2000);
+    demo_delay(2000);
 }
 
 /* ── Public API ───────────────────────────────────────────────────────────── */
@@ -424,45 +456,46 @@ void instructions_show(void) {
     inst_draw_page(0);
 }
 
-bool instructions_handle_input(void) {
-    uint8_t btn;
-    btn_event_t ev;
-    while ((ev = buttons_get_event(&btn)) != BTN_EVENT_NONE) {
-        if (ev == BTN_EVENT_PRESS || ev == BTN_EVENT_REPEAT) {
-            if (s_in_demo_menu) {
-                if (btn == BTN_UP) {
-                    if (s_demo_selected > 0) s_demo_selected--;
-                    inst_draw_demo_menu();
-                } else if (btn == BTN_DOWN) {
-                    if (s_demo_selected < 7) s_demo_selected++;
-                    inst_draw_demo_menu();
-                } else if (ev == BTN_EVENT_PRESS && btn == BTN_FIRE) {
-                    instructions_launch_demo(demo_ids[s_demo_selected]);
-                    inst_draw_demo_menu();
-                } else if (ev == BTN_EVENT_PRESS && (btn == BTN_PAUSE || btn == BTN_LEFT || btn == BTN_RIGHT)) {
-                    s_in_demo_menu = false;
-                    s_inst_page = 11; // Back to last text page (Extreme5)
-                    inst_draw_page(s_inst_page);
-                }
-            } else {
-                if (btn == BTN_UP) {
-                    if (s_inst_page > 0) s_inst_page--;
-                    inst_draw_page(s_inst_page);
-                } else if (btn == BTN_DOWN) {
-                    if (s_inst_page < 11) s_inst_page++;
-                    inst_draw_page(s_inst_page);
-                } else if (btn == BTN_LEFT) {
-                    s_in_demo_menu = true;
-                    s_demo_selected = 0;
-                    inst_draw_demo_menu();
-                } else if (btn == BTN_RIGHT) {
-                    s_in_demo_menu = true;
-                    s_demo_selected = 0;
-                    inst_draw_demo_menu();
-                } else if (ev == BTN_EVENT_PRESS && (btn == BTN_FIRE || btn == BTN_PAUSE)) {
-                    return false; // Exit to menu
-                }
-            }
+bool instructions_handle_input(btn_event_t ev, uint8_t btn) {
+    /* main.cpp owns the event queue and passes the event it already dequeued.
+     * Do not read buttons_get_event() here: the first event has already been
+     * consumed by the main loop, so an internal drain loop would lose every
+     * press and leave the tutorial screen permanently stuck. */
+    if (ev != BTN_EVENT_PRESS && ev != BTN_EVENT_REPEAT) return true;
+
+    if (s_in_demo_menu) {
+        if (btn == BTN_UP) {
+            if (s_demo_selected > 0) s_demo_selected--;
+            inst_draw_demo_menu();
+        } else if (btn == BTN_DOWN) {
+            if (s_demo_selected < 7) s_demo_selected++;
+            inst_draw_demo_menu();
+        } else if (ev == BTN_EVENT_PRESS && btn == BTN_FIRE) {
+            instructions_launch_demo(demo_ids[s_demo_selected]);
+            inst_draw_demo_menu();
+        } else if (ev == BTN_EVENT_PRESS &&
+                   (btn == BTN_PAUSE || btn == BTN_LEFT || btn == BTN_RIGHT)) {
+            s_in_demo_menu = false;
+            s_inst_page = 11; // Back to last text page (Extreme5)
+            inst_draw_page(s_inst_page);
+        }
+    } else {
+        if (btn == BTN_UP) {
+            if (s_inst_page > 0) s_inst_page--;
+            inst_draw_page(s_inst_page);
+        } else if (btn == BTN_DOWN) {
+            if (s_inst_page < 11) s_inst_page++;
+            inst_draw_page(s_inst_page);
+        } else if (btn == BTN_LEFT) {
+            s_in_demo_menu = true;
+            s_demo_selected = 0;
+            inst_draw_demo_menu();
+        } else if (btn == BTN_RIGHT) {
+            s_in_demo_menu = true;
+            s_demo_selected = 0;
+            inst_draw_demo_menu();
+        } else if (ev == BTN_EVENT_PRESS && (btn == BTN_FIRE || btn == BTN_PAUSE)) {
+            return false; // Exit to menu
         }
     }
     return true;

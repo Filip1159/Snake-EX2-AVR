@@ -2,10 +2,13 @@
  * pause.cpp — Pause overlay and game-over screen (BACKLOG U4).
  */
 #include "ui/pause.h"
+#include "config.h"
 #include "render/text.h"
 #include "drivers/st7735.h"
 #include "drivers/buttons.h"
 #include "drivers/eeprom_store.h"
+#include "drivers/buzzer.h"
+#include "drivers/stack_measure.h"
 #include <Arduino.h>
 
 #define P_W           128
@@ -18,6 +21,29 @@
 
 static uint8_t s_pause_selected;
 static uint8_t s_go_selected;
+
+#if STACK_MEASURE
+/* Q5 debug build only: show the free SRAM below the deepest stack use. */
+static void draw_stack_debug(uint8_t y) {
+    uint16_t free_b = stack_measure_update();
+    char num[6];
+    uint8_t n = 0;
+    do {
+        num[n++] = (char)('0' + (free_b % 10));
+        free_b /= 10;
+    } while (free_b && n < 5);
+    for (uint8_t i = 0; i < n / 2; i++) {
+        char t = num[i];
+        num[i] = num[n - 1 - i];
+        num[n - 1 - i] = t;
+    }
+    num[n] = '\0';
+
+    st7735_fill_rect(0, (uint8_t)(y - 2), 128, 12, 0x0000);
+    text_draw(4, y, "STACK FREE:", 1, 0xFFFF);
+    text_draw(4 + 11 * 6, y, num, 1, 0xFFFF);
+}
+#endif
 
 /* ── Pause overlay ───────────────────────────────────────────────────────── */
 
@@ -49,10 +75,17 @@ void pause_draw(void) {
             st7735_fill_rect(box_x + 5, y + 2, 3, 3, P_HL_INK);
         }
     }
+
+#if STACK_MEASURE
+    draw_stack_debug(140);
+#endif
 }
 
 pause_action_t pause_handle_input(void) {
-    uint8_t raw = buttons_poll();
+    /* This loop blocks the main loop, so keep a long effect advancing. */
+    if (buzzer_is_playing()) buzzer_update();
+
+    (void)buttons_poll();   /* updates the event queue */
     uint8_t btn;
     btn_event_t ev;
     while ((ev = buttons_get_event(&btn)) != BTN_EVENT_NONE) {
@@ -102,10 +135,17 @@ void gameover_show(uint32_t score, bool extreme) {
         text_draw((uint8_t)((P_W - text_width(items[i], 1)) / 2), y, items[i], 1, 0xFFFF);
     }
     st7735_fill_rect((uint8_t)((P_W - text_width(items[0], 1)) / 2) - 8, 92, 3, 3, 0xFFFF);
+
+#if STACK_MEASURE
+    draw_stack_debug(140);
+#endif
 }
 
 go_action_t gameover_handle_input(void) {
-    uint8_t raw = buttons_poll();
+    /* This loop blocks the main loop, so keep a long effect advancing. */
+    if (buzzer_is_playing()) buzzer_update();
+
+    (void)buttons_poll();   /* updates the event queue */
     uint8_t btn;
     btn_event_t ev;
     while ((ev = buttons_get_event(&btn)) != BTN_EVENT_NONE) {

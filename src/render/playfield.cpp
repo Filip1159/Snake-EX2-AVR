@@ -4,6 +4,7 @@
 #include "render/snake_sprites.h"
 #include "drivers/st7735.h"
 #include "config.h"
+#include <string.h>
 
 #define PF_MAX_CENTERS 48
 
@@ -32,7 +33,47 @@ static uint8_t add_stamp_cells(pf_cell_t *list, uint8_t n, uint8_t col, uint8_t 
     return n;
 }
 
+/** Mark a cell and its 3x3 neighborhood in a FIELD_CELLS bitmap.  The neighborhood
+ *  covers the overhang of the head/body/tongue sprites. */
+static void mark_cell_near(uint8_t *bits, uint8_t col, uint8_t row) {
+    for (int8_t dr = -1; dr <= 1; dr++)
+        for (int8_t dc = -1; dc <= 1; dc++) {
+            int c = (int)col + dc, r = (int)row + dr;
+            if (c >= 0 && c < FIELD_COLS && r >= 0 && r < FIELD_ROWS) {
+                uint16_t idx = (uint16_t)(c + r * FIELD_COLS);
+                bits[idx >> 3] |= (uint8_t)(1u << (idx & 7));
+            }
+        }
+}
+
+/** True when a marked cell lies within one cell of (col,row).  Item sprites overhang
+ *  by 1-2 px, so an item one cell outside a repainted 3x3 block can still have pixels
+ *  inside it and must be redrawn. */
+static bool bitmap_near(const uint8_t *bits, uint8_t col, uint8_t row) {
+    for (int8_t dr = -1; dr <= 1; dr++)
+        for (int8_t dc = -1; dc <= 1; dc++) {
+            int c = (int)col + dc, r = (int)row + dr;
+            if (c >= 0 && c < FIELD_COLS && r >= 0 && r < FIELD_ROWS) {
+                uint16_t idx = (uint16_t)(c + r * FIELD_COLS);
+                if (bits[idx >> 3] & (uint8_t)(1u << (idx & 7))) return true;
+            }
+        }
+    return false;
+}
+
 static void cell_ahead(const game_t *g, int16_t *px, int16_t *py);
+
+/** Original death blink: b.java draws the snake only while Ja / 4 is even.  The port
+ *  repaints only the snake/tongue cells on each transition instead of the whole screen. */
+static bool death_snake_visible(const game_t *g) {
+    return g->death == 0 || ((g->death / 4) % 2) == 0;
+}
+
+/** Original portal entry (b.java:815): while the portal is shrinking (Y == 2) the head
+ *  is not drawn, so the snake appears to vanish into the portal. */
+static bool portal_head_hidden(const game_t *g) {
+    return g->extreme && g->portal_state == 2;
+}
 
 static void draw_base(const game_t *g, uint8_t col, uint8_t row) {
     uint8_t x = (uint8_t)(FIELD_ORIGIN_X + col * CELL_SIZE);
@@ -188,6 +229,8 @@ static void cache_sync(const game_t *g, playfield_cache_t *c) {
     c->portal_valid = game_portal_visible(g);
     c->portal_x = g->portal_x; c->portal_y = g->portal_y;
     c->portal_state = g->portal_state;
+    c->death_active = (g->death > 0);
+    c->death_visible = death_snake_visible(g);
 }
 
 void playfield_draw_all(const game_t *g, playfield_cache_t *c) {
@@ -230,10 +273,14 @@ void playfield_draw_all(const game_t *g, playfield_cache_t *c) {
     bool open = coin_ahead ||
                 (ax == g->food_x && ay == g->food_y) ||
                 (g->bonus > 0 && ax == g->bonus_x && ay == g->bonus_y);
-    int16_t x = g->qx, y = g->qy;
-    for (int16_t i = (int16_t)g->len - 1; i >= 0; i--) {
-        draw_segment(g, (uint16_t)i, game_col(x), game_row(y), open);
-        step_back(&x, &y, g->a[i]);
+    if (death_snake_visible(g)) {
+        bool hide_head = portal_head_hidden(g);
+        int16_t x = g->qx, y = g->qy;
+        for (int16_t i = (int16_t)g->len - 1; i >= 0; i--) {
+            if (!(hide_head && i == (int16_t)g->len - 1))
+                draw_segment(g, (uint16_t)i, game_col(x), game_row(y), open);
+            step_back(&x, &y, g->a[i]);
+        }
     }
 
     c->head_open = open;
@@ -244,17 +291,49 @@ void playfield_draw_all(const game_t *g, playfield_cache_t *c) {
 bool playfield_update(const game_t *g, playfield_cache_t *c) {
     bool coin_now = (g->pu_active == 8);
 
-    /* Only a real background change (lights-out, explicit restart/death redraw) needs
-     * the whole screen. Wall stamps and coin-rush start/end are local cell changes. */
+    /* Only a real background change (lights-out, explicit full_redraw) needs the whole
+     * screen. Wall stamps, coin-rush start/end and death-blink transitions are local. */
     if (g->full_redraw || g->lights_out != c->lights_out) {
         playfield_draw_all(g, c);
         return true;
     }
 
+    /* Death animation (b.java:948-959): the snake is drawn only while Ja/4 is even.
+     * Nothing else changes during those 40 ticks, so a hold needs no drawing.  On a
+     * start/transition the regular dirty-cell pass below also repaints every snake cell,
+     * which keeps item changes (if any) and the retracting tongue correct. */
+    bool death_visible = death_snake_visible(g);
+    if (g->death > 0 && c->death_active && death_visible == c->death_visible)
+        return false;
+    bool death_transition = (g->death > 0 && !c->death_active) ||
+                            (death_visible != c->death_visible);
+
     sprite_set_clip(FIELD_ORIGIN_X, FIELD_ORIGIN_Y,
                     FIELD_ORIGIN_X + FIELD_WIDTH_PX, FIELD_ORIGIN_Y + FIELD_HEIGHT_PX);
     pf_cell_t centers[PF_MAX_CENTERS];
     uint8_t cn = 0;
+    bool tongue_now = (g->tongue > 0);
+
+    /* On a death blink transition repaint every cell the snake occupies, plus the 3x3
+     * sprite-overhang margin.  A bitmap is used instead of the capped centres list so a
+     * long snake is fully erased/redrawn without a whole-screen refresh. */
+    uint8_t death_dirty[(FIELD_CELLS + 7) / 8];
+    if (death_transition) {
+        memset(death_dirty, 0, sizeof death_dirty);
+        int16_t x = g->qx, y = g->qy;
+        for (int16_t i = (int16_t)g->len - 1; i >= 0; i--) {
+            mark_cell_near(death_dirty, game_col(x), game_row(y));
+            step_back(&x, &y, g->a[i]);
+        }
+        if (c->tongue && !tongue_now) {
+            /* The lash can retract on the collision tick; erase the cells it still
+             * occupied on screen even if the centres list is full. */
+            pf_cell_t old_tongue[3];
+            uint8_t tn = add_tongue_cells(old_tongue, 0, c->tongue_x, c->tongue_y, c->tongue_dir);
+            for (uint8_t i = 0; i < tn; i++)
+                mark_cell_near(death_dirty, old_tongue[i].col, old_tongue[i].row);
+        }
+    }
 
     /* Wall stamp appeared, moved or expired: repaint the old and new 3x3 blocks.
      * The snake is redrawn head-to-tail below, so cells it overlaps stay correct. */
@@ -279,6 +358,14 @@ bool playfield_update(const game_t *g, playfield_cache_t *c) {
     }
     if (portal_now && portal_changed)
         cn = add_cell(centers, cn, game_col(g->portal_x), game_row(g->portal_y));
+
+    /* Entry hides the head (original b.java:815), so the head cell must be repainted even
+     * though the portal itself stays at the same position.  The reverse transition (level
+     * reset) normally full-redraws, but keep the local path correct too. */
+    bool head_hidden = portal_head_hidden(g);
+    bool head_hidden_prev = c->portal_valid && c->portal_state == 2;
+    if (head_hidden != head_hidden_prev)
+        cn = add_cell(centers, cn, game_col(g->qx), game_row(g->qy));
 
     /* items that appeared, moved or expired */
     if (c->food_valid && (c->food_x != g->food_x || c->food_y != g->food_y)) {
@@ -330,8 +417,6 @@ bool playfield_update(const game_t *g, playfield_cache_t *c) {
     if (head_open != c->head_open)
         cn = add_cell(centers, cn, game_col(g->qx), game_row(g->qy));
 
-    bool tongue_now = (g->tongue > 0);
-
     /* The tongue can change without a successful move (it retracts on the tick the snake
      * dies), so erase/redraw it on state changes as well as on movement. It only changes
      * position on movement ticks; between them it stays on screen untouched. */
@@ -348,13 +433,6 @@ bool playfield_update(const game_t *g, playfield_cache_t *c) {
         if (g->len >= 2) step_back(&ox, &oy, g->a[g->len - 1]);
         cn = add_cell(centers, cn, game_col(hx), game_row(hy));
         if (g->len >= 2) cn = add_cell(centers, cn, game_col(ox), game_row(oy));
-        if (g->tail_removed) {
-            int16_t tx = hx, ty = hy;
-            for (int16_t i = (int16_t)g->len - 1; i > 0; i--) step_back(&tx, &ty, g->a[i]);
-            cn = add_cell(centers, cn, game_col(tx), game_row(ty));
-            uint8_t col, row; cell_of(g->old_tail_x, g->old_tail_y, &col, &row);
-            cn = add_cell(centers, cn, col, row);
-        }
         if (g->food_eaten) {
             uint8_t col, row; cell_of(g->eaten_x, g->eaten_y, &col, &row);
             cn = add_cell(centers, cn, col, row);
@@ -364,9 +442,30 @@ bool playfield_update(const game_t *g, playfield_cache_t *c) {
             cn = add_cell(centers, cn, col, row);
         }
     }
+    /* Portal shrink removes a tail segment without moving the head (g->moved stays false).
+     * Repaint the new tail and the vacated cell so every shrink tick is visible. */
+    if (g->tail_removed) {
+        int16_t tx = g->qx, ty = g->qy;
+        for (int16_t i = (int16_t)g->len - 1; i > 0; i--) step_back(&tx, &ty, g->a[i]);
+        cn = add_cell(centers, cn, game_col(tx), game_row(ty));
+        uint8_t col, row; cell_of(g->old_tail_x, g->old_tail_y, &col, &row);
+        cn = add_cell(centers, cn, col, row);
+    }
     /* type 6 removed a second tail cell before the normal move */
     if (g->shrink_removed)
         cn = add_cell(centers, cn, game_col(g->shrink_x), game_row(g->shrink_y));
+
+    /* Repaint the snake cells marked for a death blink transition. */
+    if (death_transition) {
+        for (uint8_t row = 0; row < FIELD_ROWS; row++)
+            for (uint8_t col = 0; col < FIELD_COLS; col++) {
+                uint16_t idx = (uint16_t)(col + row * FIELD_COLS);
+                if (death_dirty[idx >> 3] & (uint8_t)(1u << (idx & 7))) {
+                    draw_base(g, col, row);
+                    draw_overlay(g, col, row);
+                }
+            }
+    }
 
     /* Repaint a 3x3 block around every changed cell: sprites overhang their cell by up to
      * 2 px. Drawing a cell twice is harmless, so expand directly instead of keeping a
@@ -387,22 +486,30 @@ bool playfield_update(const game_t *g, playfield_cache_t *c) {
      * one cell of it, redraw the item. The snake is redrawn as a whole below. */
     if (g->food_x >= 0) {
         uint8_t col = game_col(g->food_x), row = game_row(g->food_y);
-        if (near(centers, cn, col, row)) draw_overlay(g, col, row);
+        if (near(centers, cn, col, row) ||
+            (death_transition && bitmap_near(death_dirty, col, row)))
+            draw_overlay(g, col, row);
     }
     if (g->bonus > 0) {
         uint8_t col = game_col(g->bonus_x), row = game_row(g->bonus_y);
-        if (near(centers, cn, col, row)) draw_overlay(g, col, row);
+        if (near(centers, cn, col, row) ||
+            (death_transition && bitmap_near(death_dirty, col, row)))
+            draw_overlay(g, col, row);
     }
     for (uint8_t i = 0; i < POWERUP_SLOTS; i++) {
         if (g->pu[i].id >= 1 && g->pu[i].id <= POWERUP_TYPE_COUNT) {
             uint8_t col = game_col(g->pu[i].x), row = game_row(g->pu[i].y);
-            if (near(centers, cn, col, row)) draw_overlay(g, col, row);
+            if (near(centers, cn, col, row) ||
+                (death_transition && bitmap_near(death_dirty, col, row)))
+                draw_overlay(g, col, row);
         }
     }
     /* The 10x10 portal overhangs its cell by 2 px in every direction. */
     if (portal_now) {
         uint8_t col = game_col(g->portal_x), row = game_row(g->portal_y);
-        if (near(centers, cn, col, row)) draw_overlay(g, col, row);
+        if (near(centers, cn, col, row) ||
+            (death_transition && bitmap_near(death_dirty, col, row)))
+            draw_overlay(g, col, row);
     }
     /* A coin two cells away can still overhang 1 px into a repainted block. */
     if (coin_now) {
@@ -417,18 +524,29 @@ bool playfield_update(const game_t *g, playfield_cache_t *c) {
                 }
             }
         }
+        if (death_transition) {
+            for (uint8_t row = 0; row < FIELD_ROWS; row++)
+                for (uint8_t col = 0; col < FIELD_COLS; col++)
+                    if (game_has_coin(g, col, row) &&
+                        bitmap_near(death_dirty, col, row))
+                        draw_overlay(g, col, row);
+        }
     }
 
     /* Redraw the whole snake head-to-tail (same order as playfield_draw_all()).  Segment
      * sprites are drawn in index order, so a redrawn head can be overwritten by a tail
      * sprite further down the list; redrawing every segment guarantees the exact same
      * stack of sprites as a full redraw while the field itself stays dirty-cell based. */
-    if (cn) {
+    if (cn || death_transition) {
         if (tongue_now) draw_tongue(g);
-        int16_t x = g->qx, y = g->qy;
-        for (int16_t i = (int16_t)g->len - 1; i >= 0; i--) {
-            draw_segment(g, (uint16_t)i, game_col(x), game_row(y), head_open);
-            step_back(&x, &y, g->a[i]);
+        if (death_snake_visible(g)) {
+            bool hide_head = portal_head_hidden(g);
+            int16_t x = g->qx, y = g->qy;
+            for (int16_t i = (int16_t)g->len - 1; i >= 0; i--) {
+                if (!(hide_head && i == (int16_t)g->len - 1))
+                    draw_segment(g, (uint16_t)i, game_col(x), game_row(y), head_open);
+                step_back(&x, &y, g->a[i]);
+            }
         }
     }
 

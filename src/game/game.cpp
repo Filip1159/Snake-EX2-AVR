@@ -33,6 +33,31 @@ static int32_t rnd_abs_mod(int32_t m) {
 static void wrap_x(int16_t *v) { if (*v <= 0) *v += W_PX; if (*v >= W_PX) *v -= W_PX; }
 static void wrap_y(int16_t *v) { if (*v <= 0) *v += H_PX; if (*v >= H_PX) *v -= H_PX; }
 
+/** Cells one and two ahead of the head, wrapped: the original's persistent k/l and K/L
+ *  fields.  The engine updates them on movement ticks, but the pickup checks run on the
+ *  independent C cadence, so they must stay valid between moves (b.java:1517, 1560). */
+static void tongue_reach(const game_t *g, int16_t *t1x, int16_t *t1y,
+                         int16_t *t2x, int16_t *t2y) {
+    uint8_t hd = g->dir & 0x0F;
+    int16_t x = g->qx, y = g->qy;
+    switch (hd) {
+        case DIR_UP:    y -= CELL_SIZE; break;
+        case DIR_DOWN:  y += CELL_SIZE; break;
+        case DIR_LEFT:  x -= CELL_SIZE; break;
+        default:        x += CELL_SIZE; break;
+    }
+    wrap_x(&x); wrap_y(&y);
+    *t1x = x; *t1y = y;
+    switch (hd) {
+        case DIR_UP:    y -= CELL_SIZE; break;
+        case DIR_DOWN:  y += CELL_SIZE; break;
+        case DIR_LEFT:  x -= CELL_SIZE; break;
+        default:        x += CELL_SIZE; break;
+    }
+    wrap_x(&x); wrap_y(&y);
+    *t2x = x; *t2y = y;
+}
+
 /** Step one cell back along direction d (inverse of the movement). */
 static void step_back(int16_t *x, int16_t *y, uint8_t d) {
     switch (d & 0x0F) {
@@ -467,11 +492,16 @@ void game_tick(game_t *g, uint8_t keys) {
     g->input = n4;
 
     /* tongue request (original: W && K[4] && J == 0 -> J = -1). Checked every frame;
-     * the lash itself starts on the next movement tick. */
-    if (g->extreme && (keys & KEY_FIRE) && g->tongue == 0) g->tongue = -1;
+     * the lash itself starts on the next movement tick. Enabled in both Classic and
+     * Extreme (user request; the original only exposed it in Extreme). */
+    if ((keys & KEY_FIRE) && g->tongue == 0) g->tongue = -1;
 
     /* one/two cells beyond the head, valid while the tongue is out (original k,l / K,L) */
     int16_t t1x = 0, t1y = 0, t2x = 0, t2y = 0;
+    /* The pickup checks below run on the C cadence, which can differ from the movement
+     * cadence (portal shrink sets ma=1).  Keep the reach valid on non-movement ticks;
+     * a movement tick refreshes it after the head/direction change. */
+    tongue_reach(g, &t1x, &t1y, &t2x, &t2y);
 
     if (g->cnt_b == 0) {
         if (g->tongue > 0) --g->tongue;
@@ -535,29 +565,6 @@ void game_tick(game_t *g, uint8_t keys) {
         }
         wrap_x(&g->qx); wrap_y(&g->qy);
         wrap_x(&n3);    wrap_y(&n2);
-
-        /* tongue reach: (t1x,t1y) = one cell ahead (original k,l), (t2x,t2y) = two ahead (K,L).
-         * On the very first movement tick `by` is still 0x28 (the original's no-op quirk),
-         * so fall back to the current direction and keep the reach meaningful. */
-        uint8_t hd = by & 0x0F;
-        if (hd != DIR_UP && hd != DIR_DOWN && hd != DIR_LEFT && hd != DIR_RIGHT)
-            hd = g->dir & 0x0F;
-        t1x = g->qx; t1y = g->qy;
-        switch (hd) {
-            case DIR_UP:    t1y -= CELL_SIZE; break;
-            case DIR_DOWN:  t1y += CELL_SIZE; break;
-            case DIR_LEFT:  t1x -= CELL_SIZE; break;
-            default:        t1x += CELL_SIZE; break;
-        }
-        wrap_x(&t1x); wrap_y(&t1y);
-        t2x = t1x; t2y = t1y;
-        switch (hd) {
-            case DIR_UP:    t2y -= CELL_SIZE; break;
-            case DIR_DOWN:  t2y += CELL_SIZE; break;
-            case DIR_LEFT:  t2x -= CELL_SIZE; break;
-            default:        t2x += CELL_SIZE; break;
-        }
-        wrap_x(&t2x); wrap_y(&t2y);
 
         /* self collision (as in the original: walk the body from the new head, compare with n3,n2) */
         {
@@ -636,6 +643,9 @@ void game_tick(game_t *g, uint8_t keys) {
         g->moved = true;
         g->dir = by & 0x0F;
         if (g->tongue < 0) g->tongue = 1;
+        /* The head and direction just changed; refresh k/l and K/L for this tick's
+         * bonus/pickup checks. */
+        tongue_reach(g, &t1x, &t1y, &t2x, &t2y);
 
         /* bonus food eaten by the new head or by the tongue (1-2 cells ahead) */
         bool bonus_hit = g->bonus > 0 &&

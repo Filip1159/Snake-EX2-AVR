@@ -1,9 +1,10 @@
 /**
  * menu.h — Title-screen main menu state and renderer (BACKLOG U1).
  *
- * The menu is a Tier-B reconstruction of the original Series 40 list UI:
- * four full-width rows, a header, and a soft-key footer. Up/left moves to the
- * previous item, down/right to the next, Fire selects, Pause goes back.
+ * The menu is a reconstruction of the original Series 40 list UI: a small
+ * status bar, a “Snake EX2” title row, four full-width rows with dotted
+ * leaders, and Select/Exit soft keys. Up/left moves to the previous item,
+ * down/right to the next, Fire selects, Pause goes back.
  */
 #ifndef UI_MENU_H
 #define UI_MENU_H

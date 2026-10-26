@@ -220,8 +220,132 @@ static int test_g7_layers(void) {
     return fails;
 }
 
-/* G8 portal: appearance, movement of the (test-only) target, entry state change, removal,
- * edge clipping and overlap with the head. All transitions must stay local. */
+/* S3 death blink: the original draws the snake only while Ja/4 is even (b.java:948-959).
+ * The port repaints only the snake/tongue cells on each transition, so every dirty frame
+ * must still match the full-redraw reference. */
+static int test_s3_death_blink(void) {
+    static game_t g;
+    playfield_cache_t cache;
+    int fails = 0;
+    open_game(&g, &cache);
+    g.food_x = g.food_y = -1;
+    g.bonus = 0;
+    for (uint8_t i = 0; i < POWERUP_SLOTS; i++) g.pu[i].id = 0;
+    g.portal_state = 0;
+    g.tongue = 0;
+    g.full_redraw = false;
+
+    /* Ja=40 -> 40/4 is even: snake visible.  The first dying tick repaints only the
+     * snake/tongue cells, not the whole screen. */
+    g.death = 40;
+    fails += render_check(&g, &cache, "death start visible");
+    static uint16_t visible[160][128];
+    memcpy(visible, fb, sizeof fb);
+
+    /* Ja=39 -> 39/4 is odd: background only. */
+    g.death = 39;
+    fails += render_check(&g, &cache, "death blink off");
+    int changed = 0;
+    for (int y = 0; y < 160; y++)
+        for (int x = 0; x < 128; x++)
+            if (visible[y][x] != fb[y][x]) changed++;
+    if (changed == 0) {
+        printf("FAIL death blink off: framebuffer did not change\n");
+        fails++;
+    }
+
+    /* Hold the off group, then turn back on at Ja=35 (35/4 = 8, even). */
+    g.death = 38;
+    fails += render_check(&g, &cache, "death blink off hold");
+    g.death = 35;
+    fails += render_check(&g, &cache, "death blink on");
+    if (memcmp(visible, fb, sizeof fb) != 0) {
+        printf("FAIL death blink on: visible frame differs from the live frame\n");
+        fails++;
+    }
+
+    /* A second off/on cycle, then the last visible group (Ja=3..0). */
+    g.death = 31;
+    fails += render_check(&g, &cache, "death blink off 2");
+    g.death = 30;
+    fails += render_check(&g, &cache, "death blink off hold 2");
+    /* Direct hidden -> game over is not produced by the 40-tick countdown, but the
+     * cache-based transition must still restore the visible snake. */
+    g.death = 0;
+    fails += render_check(&g, &cache, "death direct end");
+    g.death = 3;
+    fails += render_check(&g, &cache, "death last visible");
+    g.death = 2;
+    fails += render_check(&g, &cache, "death last visible hold");
+    g.death = 0;
+    fails += render_check(&g, &cache, "death end");
+
+    /* A max-length snake must be covered by the death bitmap; the normal dirty-cell
+     * centre list is capped at 48 entries and cannot represent it. */
+    for (uint16_t i = 0; i < GAME_MAX_LEN; i++) g.a[i] = DIR_RIGHT;
+    g.len = GAME_MAX_LEN;
+    g.qx = 60; g.qy = 60;
+    g.death = 40;
+    fails += render_check(&g, &cache, "death long snake visible");
+    g.death = 39;
+    fails += render_check(&g, &cache, "death long snake hidden");
+    g.death = 0;
+
+    /* The tongue can retract on the collision tick; the local death repaint must erase
+     * the cells it still occupied on screen. */
+    open_game(&g, &cache);
+    g.tongue = 1;
+    fails += render_check(&g, &cache, "death tongue visible");
+    g.death = 40;
+    g.tongue = 0;
+    fails += render_check(&g, &cache, "death tongue retract");
+    g.death = 0;
+    return fails;
+}
+
+/* G8 portal shrink: the head stops while one tail segment disappears per frame at ma=1.
+ * Every shrink tick must repaint locally; next_level() is the only full redraw. */
+static int test_g8_portal_shrink(void) {
+    static game_t g;
+    playfield_cache_t cache;
+    int fails = 0;
+    open_game(&g, &cache);
+
+    g.portal_state = 2;
+    g.portal_x = g.qx; g.portal_y = g.qy;
+    g.per_ma = 1;
+    g.cnt_b = 0;
+    g.full_redraw = false;
+    g.tongue = 0;
+
+    for (int i = 0; i < 4; i++) {
+        uint16_t before = g.len;
+        game_tick(&g, 0);
+        if (g.moved || !g.tail_removed || g.len != (uint16_t)(before - 1) ||
+            g.portal_state != 2) {
+            printf("FAIL portal shrink tick %d: moved=%d tail=%d len=%u state=%u\n",
+                   i, (int)g.moved, (int)g.tail_removed, g.len, g.portal_state);
+            fails++;
+            break;
+        }
+        fails += render_check(&g, &cache, "portal shrink");
+    }
+    if (g.len != PORTAL_SHRINK_MIN_LENGTH) {
+        printf("FAIL portal shrink length: %u, expected %u\n", g.len, PORTAL_SHRINK_MIN_LENGTH);
+        fails++;
+    }
+
+    game_tick(&g, 0);
+    if (g.portal_state != 0) {
+        printf("FAIL portal shrink end: state=%u\n", g.portal_state);
+        fails++;
+    }
+    fails += render_check_ex(&g, &cache, "portal shrink complete", true);
+    return fails;
+}
+
+/* G8 portal: appearance, movement of the (test-only) target, entry state change (head
+ * hidden), removal, edge clipping and overlap with the head. All transitions stay local. */
 static int test_g8_portal(void) {
     static game_t g;
     playfield_cache_t cache;
@@ -236,7 +360,7 @@ static int test_g8_portal(void) {
     g.portal_x = 72;                     /* not done by the engine, but covers old+new cells */
     fails += render_check(&g, &cache, "portal move");
 
-    g.portal_state = 2;                  /* entry: same sprite, same pixels */
+    g.portal_state = 2;                  /* entry: portal stays, head disappears */
     fails += render_check(&g, &cache, "portal shrink state");
 
     g.portal_state = 0;
@@ -261,15 +385,74 @@ static int test_g8_portal(void) {
     return fails;
 }
 
+/* Original b.java:815 hides the head while the portal shrinks (Y == 2), so the snake
+ * appears to enter the portal instead of sitting on top of it. */
+static int test_g8_portal_head_hidden(void) {
+    static game_t g;
+    playfield_cache_t cache;
+    int fails = 0;
+    open_game(&g, &cache);
+
+    g.portal_state = 1;
+    g.portal_x = g.qx; g.portal_y = g.qy;
+    g.full_redraw = false;
+    playfield_draw_all(&g, &cache);
+
+    uint8_t col = game_col(g.qx), row = game_row(g.qy);
+    uint16_t with_head[CELL_SIZE][CELL_SIZE];
+    for (int y = 0; y < CELL_SIZE; y++)
+        for (int x = 0; x < CELL_SIZE; x++)
+            with_head[y][x] = fb[FIELD_ORIGIN_Y + row * CELL_SIZE + y]
+                                 [FIELD_ORIGIN_X + col * CELL_SIZE + x];
+
+    g.portal_state = 2;
+    playfield_draw_all(&g, &cache);
+    uint16_t hidden[CELL_SIZE][CELL_SIZE];
+    for (int y = 0; y < CELL_SIZE; y++)
+        for (int x = 0; x < CELL_SIZE; x++)
+            hidden[y][x] = fb[FIELD_ORIGIN_Y + row * CELL_SIZE + y]
+                              [FIELD_ORIGIN_X + col * CELL_SIZE + x];
+
+    if (memcmp(with_head, hidden, sizeof hidden) == 0) {
+        printf("FAIL portal head hidden: head still drawn\n");
+        fails++;
+    }
+
+    /* A portal-only frame (no snake at all) must match the hidden head cell. */
+    uint16_t len = g.len;
+    g.len = 0;
+    playfield_draw_all(&g, &cache);
+    uint16_t portal_only[CELL_SIZE][CELL_SIZE];
+    for (int y = 0; y < CELL_SIZE; y++)
+        for (int x = 0; x < CELL_SIZE; x++)
+            portal_only[y][x] = fb[FIELD_ORIGIN_Y + row * CELL_SIZE + y]
+                                   [FIELD_ORIGIN_X + col * CELL_SIZE + x];
+    g.len = len;
+    if (memcmp(hidden, portal_only, sizeof hidden) != 0) {
+        printf("FAIL portal head hidden: cell is not portal-only\n");
+        fails++;
+    }
+
+    /* The incremental entry path must erase the head and match a full redraw. */
+    g.portal_state = 1;
+    playfield_draw_all(&g, &cache);
+    g.portal_state = 2;
+    fails += render_check(&g, &cache, "portal entry hides head");
+    return fails;
+}
+
 int main() {
     int fails = 0, ticks = 0, moves = 0, bonus_spawns = 0, food_moves = 0;
     fails += test_g7_layers();
+    fails += test_s3_death_blink();
+    fails += test_g8_portal_shrink();
     fails += test_g8_portal();
+    fails += test_g8_portal_head_hidden();
     for (int m = -1; m < 5; m++) {
         if (m >= 0) maze_load((uint8_t)m, maze_map);
         static game_t g;
         playfield_cache_t cache;
-        game_init_mode(&g, 5, (int8_t)m, m >= 0 ? maze_map : nullptr, true);  /* Extreme: tongue */
+        game_init_mode(&g, 5, (int8_t)m, m >= 0 ? maze_map : nullptr, true);  /* Extreme features */
         g.level_start_score = 1000000000u;   /* renderer sandbox: no campaign portals */
         playfield_draw_all(&g, &cache);
 
@@ -281,8 +464,10 @@ int main() {
                 bonus_spawns = bonus_spawns; /* keep going */
             }
 
-            /* inject item changes to cover spawn/expire/erase paths the random game rarely hits */
-            if (t % 97 == 0 && g.bonus <= 0) {
+            /* inject item changes to cover spawn/expire/erase paths the random game rarely hits.
+             * The engine freezes items while dying; injecting then would test a state that
+             * cannot occur and would defeat the death-blink hold optimisation. */
+            if (g.death == 0 && t % 97 == 0 && g.bonus <= 0) {
                 for (int tries = 0; tries < 50; tries++) {
                     uint8_t c = (uint8_t)(2 + next() % (FIELD_COLS - 4));
                     uint8_t r = (uint8_t)(2 + next() % (FIELD_ROWS - 4));
@@ -298,7 +483,7 @@ int main() {
                     break;
                 }
             }
-            if (t % 61 == 0) {           /* move food to a free cell (renderer must follow it) */
+            if (g.death == 0 && t % 61 == 0) {  /* move food to a free cell (renderer must follow it) */
                 for (int tries = 0; tries < 50; tries++) {
                     uint8_t c = (uint8_t)(2 + next() % (FIELD_COLS - 4));
                     uint8_t r = (uint8_t)(2 + next() % (FIELD_ROWS - 4));
@@ -312,7 +497,7 @@ int main() {
                 }
             }
             /* put food 1-2 cells ahead so the tongue picks it up (distance grab + erase) */
-            if (t % 53 == 0) {
+            if (g.death == 0 && t % 53 == 0) {
                 int k = 1 + (t / 53) % 2;
                 int16_t fx = g.qx, fy = g.qy;
                 switch (g.dir & 0x0F) {
@@ -359,9 +544,9 @@ int main() {
                     if (dirty[y][x] != fb[y][x]) { if (bad++ == 0) { bx = x; by = y; } }
                 int nc = 0;
                 for (int i = 0; i < FIELD_CELLS; i++) nc += (g.coins[i >> 4] >> (i & 15)) & 1;
-                printf("FAIL maze %d tick %d (moved=%d len=%u tail=%d bonus=%d food=%d,%d tongue=%d head=%d,%d dir=%u): %d px differ, first (%d,%d)\n",
+                printf("FAIL maze %d tick %d (moved=%d len=%u tail=%d bonus=%d food=%d,%d tongue=%d head=%d,%d dir=%u death=%u): %d px differ, first (%d,%d)\n",
                        m, t, (int)g.moved, g.len, (int)g.tail_removed, g.bonus, g.food_x, g.food_y,
-                       (int)g.tongue, g.qx, g.qy, g.dir, bad, bx, by);
+                       (int)g.tongue, g.qx, g.qy, g.dir, g.death, bad, bx, by);
                 printf("  pu=%u timer=%d lights=%d stamp=%d coins=%d slots=%u/%u/%u/%u added=%d removed=%d shrink=%d\n",
                        g.pu_active, g.pu_timer, (int)g.lights_out, (int)g.stamp_active, nc,
                        g.pu[0].id, g.pu[1].id, g.pu[2].id, g.pu[3].id,

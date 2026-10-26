@@ -1,9 +1,9 @@
 # Snake EX2 on ATmega644PA — Implementation Backlog
 
 **Project:** faithful hardware port of Nokia's *Snake EX2* (Nokia 3300, 2003, MIDlet v1.19) to a standalone ATmega644PA.
-**Target hardware:** ATmega644PA at 5 V / 8 MHz + ST7735 128×160 SPI LCD + active buzzer (no SD card — removed 2026-10-23, see D4) + 6 buttons, programmed with USBasp. The actual chip is an **ATmega644PA** (device signature `0x1E960A`); it is configured as `board = ATmega644P`, `board_build.mcu = atmega644pa`. The original ATmega32 target was swapped on 2026-10-24 because the implemented firmware already used 30,958 / 32,768 B and U1/U2/U5 still need flash.
-**Status:** G1–G9 complete and hardware-verified; U1 complete and hardware-verified; U2 complete and hardware-verified; U3 complete and hardware-verified; U4 complete and hardware-verified; U5 complete and hardware-verified.
-**Last updated:** 2026-10-24.
+**Target hardware:** ATmega644PA at 5 V / 8 MHz (internal RC as built; external crystal optional) + ST7735 128×160 SPI LCD + active buzzer (no SD card — removed 2026-10-23, see D4) + 6 buttons, programmed with USBasp. The actual chip is an **ATmega644PA** (device signature `0x1E960A`); it is configured as `board = ATmega644P`, `board_build.mcu = atmega644pa`. The original ATmega32 target was swapped on 2026-10-24 because the implemented firmware already used 30,958 / 32,768 B and U1/U2/U5 still need flash.
+**Status:** G1–G9 complete and hardware-verified; U1 complete, redesigned title/menu hardware visual check pending; U2 complete and hardware-verified; U3 complete and hardware-verified; U4 complete and hardware-verified; U5 complete, hardware re-check pending after the 2026-10-26 input fix; S1 and S2 complete and hardware-verified; S3 implemented and host-verified, hardware check pending; Q1–Q3 complete (host-verified); Q5 host/static analysis and stack instrumentation complete, hardware stack/timing pending; P1–P2 complete; Q4 and P3 require hardware.
+**Last updated:** 2026-10-26.
 
 This file is the working backlog. Work top-to-bottom, check off tasks, and record decisions in the “Decisions” section. Do not start the game engine before the reference assets and the display pipeline are proven.
 
@@ -18,7 +18,7 @@ Build a self-contained console that reproduces Snake EX2's **gameplay screen** a
 - Original 21×18 mazes preserved and extended to 21×23 by the documented rule in §1.5; exact wall tiles, snake sprites, food sprites, power-up icons, HUD bar, digit font, title art, and palettes taken from the original JAR.
 - Title art remains the extracted 128×128 image at 1:1, centered vertically; menus and gameplay fill the full 128×160 screen.
 - 15 fps update cadence; original movement cadence for all 6 speed settings.
-- Classic mode (maze + speed select) and Extreme mode (scripted campaign, power-ups, tongue, score-gated portal, maze cycling).
+- Classic mode (maze + speed select) and Extreme mode (scripted campaign, power-ups, score-gated portal, maze cycling); the tongue works in both.
 - Original edge wrapping, wall/self collision, growth, bonus food, power-ups, pause, game over, high scores, and settings persistence.
 - Sound effects driven by the extracted Nokia tone data, within the limits of the buzzer.
 
@@ -178,6 +178,12 @@ The logical head position remains `(42,54)` and the initial food remains `(24,24
 ---
 
 ## 2. Hardware plan
+
+> **Historical plan (2026-10-23/24):** this section describes the original ATmega32A at
+> 5 V/16 MHz with an SD card. The **as-built** target is an ATmega644PA at 5 V/8 MHz with
+> no SD card; see [`docs/hardware.md`](docs/hardware.md) for the as-built pin table, BOM,
+> power/level-shifting notes, fuse values and USBasp procedure. The signal assignments
+> below still match the ATmega644P/PA DIP-40 for the pins actually used.
 
 ### 2.1 Recommended electrical design
 
@@ -441,7 +447,7 @@ The original keeps a 128×128 off-screen image. On AVR that is impossible, so re
 | Digit font | Flash (compressed) | Small and hot |
 | HUD bar | Flash (RLE) | 128×20, drawn on level load |
 | Title 128×128 | SD (RLE/raw) | Large; drawn once per boot/menu |
-| High-score decorations `c,C,d,D` | SD or flash | Optional; only on high-score screen |
+| High-score decorations `g,G` | Flash (RLE) | Used by the high-score table (S3); game-over `d,D` art remains optional |
 | Tutorial text | Flash (abbreviated) or SD | 52 text entries would be large |
 | Sound sequences | Flash | 12 short sequences |
 
@@ -728,8 +734,9 @@ Estimates are relative (S/M/L), not calendar promises. Complete milestones in or
     reloads `map_buf`, resets the snake/food/slots/coins/speed and requests a full redraw.
     Original `a()` leaves `ga/Ga/Fa/ha/Ia/Ea/U/v/na/ka` untouched; the port preserves them.
     The portal is `SnakeCanvas.c` (10×10) at screen `(X-1,y-2)`; appearance and entry use
-    local dirty-cell repaints. The renderer also supports local removal, but in the engine
-    the portal only disappears at a level reset, which full-repaints.
+    local dirty-cell repaints, and entry hides the head while `Y==2` so the snake appears to
+    enter the portal. The renderer also supports local removal, but in the engine the portal
+    only disappears at a level reset, which full-repaints.
     *Verification:* `test_extreme` covers threshold equality/above, bounds, fallback/wall/
     coin rejection, coin-rush suppression, head-only entry, speed/ghost/lights/stamp
     deactivate ordering, one-segment-per-tick shrink, reset, all six mazes, preserved
@@ -738,7 +745,8 @@ Estimates are relative (S/M/L), not calendar promises. Complete milestones in or
     `x/z/Y/X/y/da` + map bytes: 0 mismatches. `build/oracle/traces_campaign_natural`
     (12 power-up-bot traces, **28,481 ticks**, includes natural portal spawns/entries,
     power-ups and level transitions): 0 mismatches. `test_playfield` adds portal
-    on/move/state/off/edge/head-overlap cases against a full redraw (all local).
+    on/move/state/off/edge/head-overlap cases against a full redraw (all local) and verifies
+    the hidden head cell is portal-only during shrink.
     Flash/RAM: **30,958/32,768 B (94.5%, 1,810 B free), 1,610/2,048 B (78.6%)**;
     1,810 B will not cover the U1/U2 menus plus U5 demos, so plan the ATmega644P/PA swap
     (documented fallback) or prune assets before M6.
@@ -806,22 +814,30 @@ Estimates are relative (S/M/L), not calendar promises. Complete milestones in or
     `game_init_classic()` (Classic) or `game_init_mode(..., true)` (Extreme); the default
     is Classic/no maze/speed 2. The G9 `START_*` preset and `ATmega644PA_classic`
     environment were removed because U1 supersedes the compile-time boot path.
-  - *Verification:* `test/host/test_menu.cpp` covers exact labels, selection wrapping,
-    text metrics, the selected/unselected row colours, and that the header, all four
-    rows and the footer are rendered (full 128×160 height). It also compares two-row
-    incremental navigation against a full redraw for both adjacent and wrapping moves,
-    and asserts that no `fill_screen()` occurs during navigation. The complete host suite still
-    passes: 216 classic traces / 127,955 ticks, 36 all-classic traces / 79,161 ticks,
-    18 power-up traces / 45,642 ticks, 9 forced-campaign traces / 180,000 ticks and
-    12 natural-campaign traces / 28,481 ticks, all with 0 mismatches. Firmware builds at
-    **RAM 1,654/4,096 B (40.4%), flash 37,146/65,536 B (56.7%)**; the ~6 KB flash
-    increase over G9 is the title art, which was previously dead-stripped because the
-    old boot path never called `title_draw()`.
-  - *Hardware check:* flash `.pio/build/ATmega644PA/firmware.hex`. Verify the title art
-    and prompt appear immediately, auto-advance after ~3 s and also advance on any key;
-    check Up/Left, Down/Right wrapping, Fire on all four items, Pause/back from the menu
-    and from the three info screens, and that New game starts a playable Classic/no-maze/
-    speed-2 game. Tick U1 after confirmation.
+  - *S40 redesign (2026-10-26):* title and menu graphics now follow the supplied Nokia
+    Series 40 reference screenshots. The title keeps the original 128×128 art at `(0,16)`
+    and adds blue chrome, two silver trophies and a centred `OPTIONS` button in the
+    bottom band. The menu is a 128×160 S40 `List`: decorative status bar (signal,
+    battery, static `22:22`), `Snake EX2` title row with dotted leader and `1`, four
+    20 px mixed-case rows with dotted leaders, full-width light-blue selection band,
+    and `Select`/`Exit` soft keys. The shared 5×7 font gained lowercase glyphs; the
+    layout remains fixed-pitch. The status-bar clock is decorative because there is no
+    RTC.
+  - *Verification (2026-10-26):* `test/host/test_menu.cpp` covers mixed-case labels,
+    lowercase glyphs, status/title/row/soft-key layout, selection wrapping, row colours,
+    dotted leaders, and two-row incremental navigation against a full redraw (no
+    `fill_screen()` during navigation). `test/host/test_hud.cpp` covers the title art plus
+    trophy/Options chrome. The complete host suite passes: 216 classic traces / 127,955
+    ticks, 36 all-classic traces / 79,161 ticks, 18 power-up traces / 45,642 ticks,
+    9 forced-campaign traces / 180,000 ticks and 12 natural-campaign traces / 28,481
+    ticks, all with 0 mismatches. Firmware builds at **RAM 1,938/4,096 B (47.3%),
+    flash 48,946/65,536 B (74.7%)**.
+  - *Hardware check:* flash `.pio/build/ATmega644PA/firmware.hex`. Verify the title art,
+    trophies and `OPTIONS` button appear immediately and auto-advance after ~3 s or on
+    any key; check the S40 list layout, mixed-case labels, dotted leaders, selected-row
+    band, `Select`/`Exit` soft keys, Up/Left and Down/Right wrapping, Fire on all four
+    items, Pause/back from the menu and from the three info screens, and that New game
+    starts a playable Classic/no-maze/speed-2 game. **Hardware visual check pending.**
 
 - [x] **U2. Settings**
   - Mode (Classic/Extreme), maze, speed, sound on/off.
@@ -895,7 +911,7 @@ Estimates are relative (S/M/L), not calendar promises. Complete milestones in or
     appears automatically with final score and Restart/Menu options. Pause cannot
     corrupt game state.
 
-- [ ] **U5. Instructions/tutorial**
+- [x] **U5. Instructions/tutorial**
   - Port the relevant `lang.xx` strings; keep longer text on SD if flash is tight.
   - Include the tongue, walls, bonus food, and power-up hints.
   - Port the `Snake.J` page sequence and its seven scripted demo games (`ta`/`Ta`
@@ -912,71 +928,207 @@ Estimates are relative (S/M/L), not calendar promises. Complete milestones in or
     rush (-6), lights out (-7), high-score entry (-8). Each demo initializes a game
     with specific settings, forces the relevant game state, and auto-plays for a few
     seconds. Text rendering uses word-wrapping with the 5×7 font. `text_draw_p`/`text_width_p`
-    handle PROGMEM strings. Host test `test_instructions` (to be added) will verify
-    page navigation and demo launch. Flash increased by ~4 KB for tutorial text and
-    demo logic.
-  - *Verification:* Full host suite passes (216/36/18/9/12 trace sets, 0 mismatches).
-    Firmware builds at **RAM 1,878/4,096 B (45.8%), flash 45,414/65,536 B (69.3%)**.
-  - *Hardware check:* flash `.pio/build/ATmega644PA/firmware.hex`. Verify:
-    - Main menu → Instructions opens tutorial screen.
-    - Up/Down navigates 12 text pages with correct content and page indicator.
-    - Left/Right enters demo menu with 8 items (Tongue, Walls, Bonus Food, Speed Up,
-      Ghost, Coin Rush, Lights Out, High Score).
-    - Up/Down selects demo, Fire launches it, demo auto-plays and returns to demo menu.
-    - Pause/Fire from any page returns to main menu.
-    - All text legible on 128×160 display.
+    handle PROGMEM strings. Host test `test_instructions` verifies page/demo-menu
+    navigation, press/repeat/release handling and that the handler never drains the
+    button queue. Flash increased by ~4 KB for tutorial text and demo logic.
+  - *Verification (2026-10-26):* Full host suite passes (216/36/18/9/12 trace sets,
+    0 mismatches); firmware builds at **RAM 1,938/4,096 B (47.3%), flash
+    48,946/65,536 B (74.7%)**.
+  - *Hardware check:* 2026-10-25 confirmed the original tutorial. The 2026-10-26 S40
+    menu/title work exposed a stuck-input regression: `main.cpp` dequeued the event and
+    then `instructions_handle_input()` drained the queue again, losing every press and
+    leaving the first page frozen. Fixed by passing the already-dequeued event into the
+    handler; `test_instructions` is the regression test. **Hardware re-check pending.**
 
 ### M7 — Audio and polish
 
-- [ ] **S1. Sound table**
+- [x] **S1. Sound table**
   - Decode `sounds.nok` into note sequences; map `playSFX(0..12)` to events.
   - Implement the 1760 Hz beep for index 12.
   - **Done when:** all 13 sound IDs (0–12) play at the right moments and do not overlap incorrectly.
+  - *Implementation:* `tools/gen_sounds.py` verifies the frozen `reference/sounds.nok` (479 B,
+    SHA-256 `1e7078a1…4c17ed`) and decodes the Nokia Smart Messaging RTPL bitstream into
+    `src/assets/sounds_gen.{h,cpp}` (flat PROGMEM note pool + offset/length tables) and
+    `build/assets/sounds.json` for auditing. Chunks 0–11 become SFX 0–11; index 12 is the
+    synthetic 1760 Hz / 100 ms beep from `ToneDevice.initialise()`, matching
+    `SFX_BEEP_FREQ_HZ`/`SFX_BEEP_DURATION_MS`. 13 sequences, 150 notes, 489 B of tables.
+    `drivers/buzzer.cpp` plays them non-blocking against `millis()` deadlines; a new
+    `buzzer_play()` restarts the single monophonic channel (deliberate Tier C approximation
+    of the original's overlapping `Sound` objects). All existing event mappings in
+    `config.h`/`game.cpp` are unchanged (0 speed-up … 10 death, 11 high score, 12 food beep).
+    SFX 11 is now also played from the high-score entry screen (`Snake.java:423`); the
+    tutorial demo loops service `sfx_mask` and `buzzer_update()` themselves because they
+    bypass the main loop, and the pause/game-over loops advance any effect still playing
+    so a long tone cannot stick.
+  - *Verification:* `test/host/test_buzzer.cpp` checks the table layout/ranges, the synthetic
+    beep, Timer2 OCR math, pause notes, restart, mute, invalid IDs, `millis()` wraparound, and
+    plays **all 13 sequences note-by-note** while checking the output pin. `test_highscores`
+    verifies SFX 11 on entry and the sound-setting gate; `test_pause` verifies both blocking
+    UI loops service the buzzer. Full host suite passes (216/36/18/9/12 oracle trace sets,
+    0 mismatches). Firmware builds at **RAM 1,894/4,096 B (46.2%), flash 46,106/65,536 B
+    (70.4%)** — +692 B flash over U5.
+  - *Hardware check:* **confirmed 2026-10-25** with an active buzzer: all effects are
+    audible and recognisable, SFX 11 starts on high-score entry, SFX 12 beeps on eating
+    food, a new effect cleanly replaces the previous one (no stuck tone), and the sound
+    setting gates playback.
 
-- [ ] **S2. Passive buzzer support**
-  - Timer0 square wave, note frequencies, duration, envelope (on/off).
+- [x] **S2. Passive buzzer support**
+  - Timer square wave (Timer2 on this port; Timer0 is owned by `millis()`), note frequencies,
+    duration, envelope (on/off).
   - Optional volume via PWM duty.
   - **Done when:** a recognizable monophonic version of each effect plays on a passive piezo.
+  - *Implementation:* **Timer2**, not Timer0: the Arduino core owns Timer0 for `millis()` and
+    Timer1 is reserved for the 15 fps scheduler. Timer2 runs in CTC mode with prescaler 64;
+    `OCR2A = round(F_CPU / (2·64·hz)) − 1` (clamped to 0–255) and `TIMER2_COMPA_vect` toggles
+    PB0, so the square-wave frequency is `F_CPU / (128·(OCR+1))`. A frequency of 0 stops the
+    timer and holds the pin low (pause). `FEATURE_PASSIVE_BUZZER` selects the boot default
+    (still `0`/active); `buzzer_set_mode()` switches at runtime. The optional PWM volume
+    control is not implemented (fixed 50% duty).
+  - *Verification:* `test_buzzer` checks the OCR calculation (440/1760/2000 Hz, 8-bit clamp,
+    out-of-range) and passive-mode state/beep playback on the host.
+  - *Hardware check:* **confirmed 2026-10-25** with a passive piezo on PB0: pitch tracks the
+    decoded notes and pauses are silent.
 
-- [ ] **S3. Visual polish**
+- [x] **S3. Visual polish**
   - Death animation, portal effect, power-up blink, lights-out transition, high-score decorations.
   - Match timing to the original where known; avoid adding non-original effects to Tier A areas.
   - **Done when:** reference comparisons show no unintended visual differences.
+  - *Implementation (2026-10-25):*
+    - **Death blink.** `b.java:948-959` sets `Ka=true` on every dying tick and draws the snake
+      only while `Ja / 4 % 2 == 0`, so the full snake disappears for four ticks and returns
+      for four ticks. `playfield_draw_all()` now applies the same visibility rule;
+      `playfield_update()` full-redraws on the first dying tick (the collision tick can leave a
+      stale head/tongue) and on every blink transition, while the three hold ticks in each
+      group are skipped. The cache tracks `death_active`/`death_visible`. A full redraw is still
+      used when `full_redraw` or a lights-out change arrives during death.
+    - **High-score decorations.** `tools/gen_assets.py` now emits `IMG_HS_BADGE` (`g`, 11×11)
+      and `IMG_HS_FRAME` (`G`, 60×21) as RLE images (+430 B). The table uses the original
+      positions from `Snake.java:710-719`: two g medals at (20,20)/(95,20), two G frames at
+      (33,15)/(33,90), and six 8×9 score digits at (39,21)/(39,96) via the shared
+      `hud_draw_number()`. Empty slots keep the U3 dashes; the 12 px header and footer remain
+      Tier-B reconstructions.
+    - **Portal.** The original draws the static 10×10 `c` sprite while `Y==1 || Y==2`
+      (`b.java:457-459`) and keeps the same sprite during entry. The renderer already matches;
+      the visible shrink is the G8 game-state animation, not a separate renderer effect.
+    - **Power-up blink.** Investigated and intentionally **not** added: the original draws field
+      slots and the active HUD icon statically (`b.java:448-456`, `885-895`). Adding a blink
+      would be a new Tier A visual difference.
+    - **Lights-out.** The original toggles the background and sets `Ka` on the packed countdown
+      (`b.java:981-1005`); the renderer already full-redraws when `lights_out` changes.
+  - *Verification:* `test_playfield` adds a death-blink test (Ja 40→39→38→35→31→3→0) that
+    checks the full-redraw return values and compares every incremental frame with a full
+    redraw; `test_highscores` checks the g/G decoration pixels, white digit glyphs, and the
+    empty-slot dashes. Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches).
+    Firmware builds at **RAM 1,896/4,096 B (46.3%), flash 46,532/65,536 B (71.0%)**
+    (+426 B over S2).
+  - *Hardware check:* flash `.pio/build/ATmega644PA/firmware.hex`. Verify:
+    - After a collision the snake blinks completely off/on every four ticks for ~2.7 s, then
+      the game-over screen appears.
+    - The high-score table shows the two g medals, both G frames, and six-digit scores for
+      both modes; empty slots show dashes.
+    - Portal appearance/entry/shrink and lights-out toggling are unchanged.
+    Pending.
 
 ### M8 — Accuracy and QA
 
-- [ ] **Q1. Host-side logic tests**
+- [x] **Q1. Host-side logic tests**
   - Compile the pure game logic natively with stub HAL.
   - Test movement, wrap, collision, food spawn, score, portal threshold, power-up timers, EEPROM CRC.
   - **Done when:** all tests pass and are run by `pio test -e host` or a Makefile.
+  - *Implementation (2026-10-25):* `test/host/run.sh` builds and runs the native suite with
+    `test/host/Arduino.h` and the `avr/`/`hal/` stubs. It covers EEPROM CRC-16/CCITT and
+    bit-flip corruption, buttons, buzzer/SFX, maze/field, HUD/title, menus/text, settings,
+    high scores, pause/game-over, sprite vectors, game init, Classic selection, tongue,
+    power-ups, Extreme/portal, and the dirty-cell playfield. Oracle traces cover 216+36+18+
+    9+12 runs with 0 mismatches. A top-level `Makefile` provides `make test` (and
+    `make firmware`, `make assets`); no `pio test -e host` environment is needed because the
+    native suite has no PlatformIO dependencies.
 
-- [ ] **Q2. Asset golden tests**
+- [x] **Q2. Asset golden tests**
   - Verify original and derived maze bytes, the 21×23 extension, sprite counts, palette sizes, and a CRC of every generated asset.
   - **Done when:** regenerating assets produces an identical manifest.
+  - *Implementation (2026-10-25):* `tools/test_assets.py` regenerates the complete pipeline
+    into a temporary directory (`extract_snake_ex2.py --out`, `convert_assets.py --assets`,
+    `gen_assets.py --assets/--out`) and verifies:
+    - `reference/d` size/SHA-256 and the original 6×378 maze bytes;
+    - the documented 21×23 extension (five rows after row 9; Box repeats its side wall);
+    - 61 original sprite records (names/sizes/palette bounds/transparent indices), the four
+      tongue rotations, and the 63-entry firmware sprite table;
+    - the extractor SHA-256 manifest against `test/golden/assets_manifest.sha256`;
+    - a CRC32/size manifest of 31 firmware files (mazes, PNGs, RGB565 data, JSON metadata,
+      and `assets_gen.{h,cpp}`) against `test/golden/assets_crc32.txt`;
+    - byte-identical `src/assets/assets_gen.{h,cpp}` after regeneration.
+    `make test` runs it before the native tests; `--update` refreshes the golden files after
+    an intentional asset change.
 
-- [ ] **Q3. Visual diff**
+- [x] **Q3. Visual diff**
   - Render reference frames on the host (same drawing code with a stub LCD) and compare to captured original frames; separately render the derived 128×160 frame and check the documented translation.
   - Allow only expected differences from RGB565 quantization, the 128×160 extension, and menu reconstruction.
   - **Done when:** all Tier A screens pass within a small color tolerance.
+  - *Implementation (2026-10-25):* `test/host/render_static.cpp` draws maze 0 + the HUD
+    through the real `field`/`hud`/`image` code with a stub ST7735 framebuffer and writes a
+    128×160 PPM. `tools/test_visual.py` builds and runs it, then checks:
+    - the complete frame against the independent Python pipeline preview
+      (`build/assets/preview/screen_128x160_maze0.png`): 0 pixels differ by more than 8/255
+      per channel (RGB565 quantization only);
+    - the documented layout mockup (`reference/screens/layout_128x160_mockup.png`) for the
+      top/bottom/left/right border and the HUD region: 0 pixels differ by more than 8/255.
+    The mockup's dark-green field is an early layout artifact; the playfield colour was
+    corrected to `0xEEDDBB` from `b.java` (A2), so the field interior is covered by the
+    independent preview comparison instead. The IGDB JPEGs are lossy, scaled and not
+    pixel-aligned; their art is covered by the tile/sprite/HUD golden checks and the A2/R3
+    qualitative comparisons. `make test` runs this after the Q2 asset check.
 
 - [ ] **Q4. Hardware soak**
-  - 2-hour play, 100 deaths, 100 power cycles, SD inserted/removed only while off, maximum-length (483-cell) snake.
-  - Monitor 5 V/3.3 V rails, reset behavior, and EEPROM integrity.
+  - 2-hour play, 100 deaths, 100 power cycles, maximum-length (483-cell) snake.
+  - Monitor 5 V/3.3 V rails, reset behavior, EEPROM integrity, display and buzzer behavior.
   - **Done when:** no hangs, no corrupted saves, no display artifacts.
 
 - [ ] **Q5. Timing/performance**
-  - Measure frame time, SPI throughput, SD load time, and stack high-water mark.
-  - **Done when:** 15 fps is stable, worst-case frame < 50 ms, flash ≤ 30 KB, static RAM ≤ 1.8 KB including stack and excluding the overlaid SD buffer, stack margin ≥ 256 B.
+  - Measure normal-frame time, SPI throughput, event-only full-redraw time, and the stack high-water mark on hardware.
+  - **Done when:** normal 15 fps frames are under 50 ms; full redraws are event-only and documented; flash/RAM fit the ATmega644PA with ≥ 4 KB flash free and ≤ 3.5 KB static RAM including stack; stack margin ≥ 512 B.
+  - *Host/static analysis (2026-10-25):* `test/host/bench_frame.cpp` drives 12,000 ticks with
+    random input and counts every pixel written. Normal dirty-cell frames peak at **12.75 ms**;
+    the all-tick average is **18.72 ms** (including 1,834 full redraws and a worst-case HUD
+    refresh every tick). Event-only full redraws cost **108.79 ms** (initial full 104.97 ms);
+    the 4 MHz SPI lower bound alone is
+    **81.9 ms** for 20,480 pixels (F_CPU/2 = 4 MHz, 16 bits/pixel = 4 µs/pixel), so a
+    sub-50 ms full redraw is impossible at 8 MHz. Full redraws happen only on level start,
+    lights-out, and death-blink transitions (one per four-tick group, not every death tick).
+    Flash is **46,580 / 65,536 B (18,956 B free)** and static RAM is **1,896 / 4,096 B**
+    (2,200 B left before the stack).
+  - *Stack instrumentation (2026-10-25):* new `src/drivers/stack_measure.{h,cpp}` paints
+    free SRAM from `__bss_end` up to `SP-32` with `0xA5` at boot and scans the low-water mark.
+    `make stack-measure` / `make stack-measure-upload` build/upload a debug image
+    (`-DSTACK_MEASURE=1`); the pause and game-over screens then show `STACK FREE: NNNN`.
+    The debug build uses **RAM 1,915 / 4,096 B** and **flash 46,956 / 65,536 B**; the release
+    build is unchanged. Measure on hardware, record the margin (Q5 threshold ≥ 512 B), then
+    rebuild the release image.
 
 ### M9 — Release and documentation
 
-- [ ] **P1. Wiring and BOM docs**
+- [x] **P1. Wiring and BOM docs**
   - Schematic-style pin table, power notes, level-shifter notes, fuse values, USBasp procedure.
   - **Done when:** a builder can assemble the board without reading the source.
+  - *Implementation (2026-10-25):* new [`docs/hardware.md`](docs/hardware.md) documents the
+    as-built ATmega644PA DIP-40 pin table (PB0 buzzer, PB2–PB5/PB7 LCD, PC1 backlight,
+    PA0–PA5 buttons), the 2×3 ISP header, a complete BOM, 5 V/3.3 V power and decoupling,
+    backlight/buzzer transistor wiring, button debounce, 5 V→3.3 V level shifting (74LVC245/
+    74HC4050, MISO caveat), the recommended fuses (as-built internal RC `LFUSE=0xE2`, or
+    `0xF7` with an external 8 MHz crystal; `HFUSE=0xD7`, `EFUSE=0xFD`, lock `0xFF`), and the
+    USBasp/Linux/Windows setup. The historical ATmega32/16 MHz plan in `BACKLOG.MD` §2 is
+    marked as superseded.
 
-- [ ] **P2. Build/flash docs**
+- [x] **P2. Build/flash docs**
   - `pio run -t upload` / `avrdude` command, fuse read/write, recovery, SD card format.
   - **Done when:** a clean machine can build and flash from the README.
+  - *Implementation (2026-10-25):* new [`README.md`](README.md) gives the quick start
+    (`pio run -e ATmega644PA`, `make test`, `pio run -t upload`) and links to
+    [`docs/build.md`](docs/build.md), which covers prerequisites, the PlatformIO environment,
+    asset regeneration, the host suite, PlatformIO and manual `avrdude` flashing, fuse
+    read/write, EEPROM backup/restore, clock/SPIEN/JTAG recovery, display troubleshooting,
+    and the fact that **no SD card** is used (the original SD-format step is obsolete).
+    `make upload`, `make fuses`, and `make fuses-read` wrap the common commands.
 
 - [ ] **P3. Final acceptance run**
   - Execute the §9 checklist on the real hardware.
@@ -1055,7 +1207,7 @@ Do not build the menu system before the playfield renders correctly; it hides re
 - [ ] All 6 derived 21×23 maze maps match Appendix A.2 byte-for-byte and visually.
 - [ ] Wall tiles, snake segments, food, and power-up icons use the extracted palettes and correct offsets, translated by the playfield origin (1,1).
 - [ ] HUD bar at y=139; score digits at (39,139), 6 digits; bonus digits at (69,145), 4 digits; power-up icon at x=110-(type-1)*13, y=142.
-- [ ] Title screen is the extracted 128×128 art shown 1:1 at (0,16), or the documented fallback if SD is absent.
+- [ ] Title screen is the extracted 128×128 art shown 1:1 at (0,16); no SD fallback is needed (all assets are in flash).
 - [ ] No ghost pixels or half-drawn cells during normal play.
 
 ### Behavior
@@ -1072,10 +1224,10 @@ Do not build the menu system before the playfield renders correctly; it hides re
 
 ### Non-functional
 
-- [ ] 15 fps stable during play; worst-case frame < 50 ms.
+- [ ] 15 fps stable during play; normal dirty-cell frames < 50 ms; event-only full redraws (level start, lights-out, death blink) measured and documented.
 - [ ] Flash image fits the ATmega644P/PA (64 KB) with ≥ 4 KB free after all features; static RAM ≤ 3.5 KB including stack; stack margin ≥ 512 B.
 - [ ] No dynamic allocation, no `String`, no floating point.
-- [ ] Cold boot to title < 2 s; SD missing/corrupt still boots.
+- [ ] Cold boot to title < 2 s; no SD dependency (there is no SD card).
 - [ ] Settings/high scores survive 100 power cycles; corrupted EEPROM falls back.
 - [ ] 2-hour soak with no hang, reset, or display artifact.
 - [ ] All 13 sound IDs (0–12) mapped; no stuck notes; mute works.
@@ -1088,18 +1240,20 @@ Record the chosen option and date here before starting the related milestone. D9
 
 | ID | Decision | Recommendation | Status |
 |---|---|---|---|
-| D1 | 5 V/16 MHz + level shifters vs 3.3 V/8 MHz direct | 5 V/16 MHz for margin; 3.3 V/8 MHz for simplicity | open |
+| D1 | 5 V/16 MHz + level shifters vs 3.3 V/8 MHz direct | 5 V/16 MHz for margin; 3.3 V/8 MHz for simplicity | decided: 5 V / 8 MHz (D11/D13) |
 | D2 | Bare-metal avr-libc vs Arduino framework | Bare-metal | open |
 | D3 | Active buzzer only vs add passive piezo | Add passive piezo for real melodies; keep active as fallback | open |
 | D4 | SD role | **No SD card.** All assets in flash. Title art last/optional; if flash is short, shrink it or move to ATmega644P/PA (pin-compatible, 64 KB flash / 4 KB RAM; JTD via `MCUCR`, PlatformIO `board = ATmega644P`, `board_build.mcu = atmega644pa`) | decided 2026-10-23; target updated to 644PA 2026-10-24 |
 | D5 | Extreme campaign depth | Endless portal/maze progression implemented; tutorial demos (`Snake.J` `-1..-8`) scoped to U5; revisit flash budget with the menu/tutorial work | open |
-| D6 | Menu fidelity | Tier B custom Nokia-style menus (original uses Series 40 UI) | open |
+| D6 | Menu fidelity | S40-style list reconstruction implemented (status bar, title row, 20 px rows with dotted leaders, light-blue selection, Select/Exit soft keys); the shared 5×7 fixed-pitch font remains an approximation of the native S40 font | updated 2026-10-26 |
 | D7 | Resume-state save | High scores/settings first; optional compact resume slot later | open |
 | D8 | Enclosure/buttons | 6 tactile buttons, landscape or portrait? | open |
 | D9 | 128×160 layout | No official 128×160 build found; use the derived 21×23 playfield + HUD (§1.5), never scale the 128×128 art | decided 2026-10-23 |
 | D10 | Title art on 128×160 | Keep the original 128×128 art 1:1 at (0,16); fill top/bottom with the title background | decided 2026-10-23 |
 | D11 | MCU target | **ATmega644P/PA at 5 V / 8 MHz**; actual chip is **ATmega644PA, signature `0x1E960A`**. Same DIP-40 board and pinout; `MCUCR` JTD write (not `MCUCSR`); 64 KB flash / 4 KB SRAM. PlatformIO uses `board = ATmega644P` with `board_build.mcu = atmega644pa`. Swapped because the G8 image used 94.5% of the ATmega32 flash with all menus/tutorial still ahead. | decided 2026-10-24; 644PA confirmed |
 | D12 | Speed selector range | Six indices `0..5` for G9/U2, matching the backlog and EEPROM/oracle contract. The original `c.java` draws nine positions (`Snake.I=0..8`); engine cadence/score already handle all nine, so exposing nine is a UI/settings change, not a core rewrite. Revisit before U2. | decided 2026-10-24 (six; nine deferred) |
+| D13 | Clock source and fuses | **As-built: internal 8 MHz RC (LFUSE=0xE2), 5 V; HFUSE=0xD7 (JTAG off, SPIEN on, EEPROM retained), EFUSE=0xFD (BOD 2.7 V), lock 0xFF.** An external 8 MHz crystal is optional (LFUSE=0xF7) for more accurate timing; read LFUSE first and keep the matching value. The M2 D1 hardware note recorded the internal-RC build. | decided 2026-10-25 |
+| D14 | Frame budget / full redraws | Normal dirty-cell frames must stay **< 50 ms**; full redraws are **event-only** (level start, lights-out, death-blink transitions) and cost ~**109 ms** at 4 MHz SPI (the 20,480-pixel theoretical minimum alone is 81.9 ms). A sub-50 ms full frame is impossible at 8 MHz, so the §9 acceptance text was updated to separate steady-state and event-only redraws. | decided 2026-10-25 |
 
 ---
 
@@ -1601,3 +1755,17 @@ Do not apply this until H1/H2 pass with the current Arduino blink; verify that `
 | 2026-10-24 | U4 implemented: pause overlay with grid pattern (Resume/Restart/Menu) and game-over screen with final score (Restart/Menu). `src/ui/pause.{h,cpp}` added; old `show_game_over()` replaced; PAUSE during gameplay opens overlay, Up/Down/Fire/PAUSE handle actions; game over shows score with Restart/Menu. `test_pause` verifies grid overlay and full-screen fill. Host suite passes (216/36/18/9/12 trace sets). Build: **RAM 1,818/4,096 B (44.4%), flash 41,366/65,536 B (63.1%)**. Awaiting U4 hardware confirmation. |
 | 2026-10-24 | U4 hardware-confirmed: PAUSE overlay shows Resume/Restart/Menu; Resume clears grid pattern and resumes cleanly; Restart/Menu work. Game-over screen appears automatically with final score and Restart/Menu options. Pause cannot corrupt game state. Ticked. U5 Instructions/tutorial is next. |
 | 2026-10-24 | U5 implemented: tutorial screen with 12 text pages (from lang.xx) and 8 scripted demo games. `src/ui/instructions.{h,cpp}` added; navigation via Up/Down (pages), Left/Right (demo menu), Fire (select/run demo), Pause/Fire (back). Demos: -1 tongue, -2 walls, -3 bonus food, -4 speed up, -5 ghost, -6 coin rush, -7 lights out, -8 high score. Each demo auto-plays a configured scenario. Text rendering uses word-wrapped 5×7 font from PROGMEM. Host suite passes (216/36/18/9/12 trace sets). Build: **RAM 1,878/4,096 B (45.8%), flash 45,414/65,536 B (69.3%)**. Awaiting U5 hardware confirmation. |
+| 2026-10-25 | S1/S2 implemented (host-verified, hardware pending). `tools/gen_sounds.py` verifies the frozen `reference/sounds.nok` (479 B, SHA-256) and decodes the Nokia Smart Messaging RTPL bitstream into `src/assets/sounds_gen.{h,cpp}` (13 sequences, 150 notes, 489 B PROGMEM tables) plus `build/assets/sounds.json`; chunks 0–11 are SFX 0–11 and index 12 is the synthetic 1760 Hz / 100 ms beep. `drivers/buzzer.{h,cpp}` now plays the table non-blocking against `millis()`, restarts the monophonic channel on a new `buzzer_play()` (Tier C), gates on mute, and supports active (PB0 on/off) or passive output. Passive mode uses **Timer2** CTC / prescaler 64 (`OCR2A = round(125000/(2·hz))−1`, ISR toggles PB0) because Timer0 is `millis()` and Timer1 is the 15 fps scheduler; `FEATURE_PASSIVE_BUZZER` still defaults to 0 and `buzzer_set_mode()` can switch at runtime. SFX 11 now plays on high-score entry (`Snake.java:423`); the tutorial demo loops service `sfx_mask`/`buzzer_update()` and use an audio-aware delay, and the pause/game-over loops advance a playing effect so it cannot stick. New `test/host/test_buzzer.cpp` checks the table, synthetic beep, OCR math, pause/restart/mute/invalid IDs, `millis()` wrap, and all 13 sequences note-by-note with pin assertions; `test_highscores` covers SFX 11 plus the sound gate and `test_pause` covers the blocking-loop servicing. Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches). Build: **RAM 1,894/4,096 B (46.2%), flash 46,106/65,536 B (70.4%)** (+692 B over U5). Hardware checks pending: active-buzzer audibility/event timing and, if a piezo is wired, passive pitch/pauses with `FEATURE_PASSIVE_BUZZER 1`. |
+| 2026-10-25 | S1/S2 hardware-confirmed: active-buzzer effects, SFX 11 on high-score entry, SFX 12 on food, monophonic restart, and the sound gate all verified; passive-piezo pitch and silent pauses also verified on PB0. Both ticked. S3 implemented: death blink matches `b.java:948-959` (background repainted on each dying tick, snake drawn only while `Ja/4` is even; the renderer repaints on the first tick and each blink transition and skips the holds), `gen_assets.py` now emits the original high-score `g`/`G` RLE art, and the table uses the original `(20,20)`/`(95,20)` medals, `(33,15)`/`(33,90)` frames and `(39,21)`/`(39,96)` six-digit scores via `hud_draw_number()`. The portal is the original static `c` sprite, lights-out already full-redraws, and power-up blink was deliberately omitted because the original draws field slots and the HUD icon statically. `test_playfield` adds death-blink return-value/pixel checks; `test_highscores` checks g/G, white digit glyphs and empty-slot dashes. Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches). Build: **RAM 1,896/4,096 B (46.3%), flash 46,532/65,536 B (71.0%)** (+426 B over S2). S3 hardware check pending. |
+| 2026-10-25 | U5 hardware-confirmed: main menu → Instructions opens the 12-page tutorial with the page indicator; Left/Right opens the 8-item demo menu; Up/Down + Fire launches each demo and returns to the demo menu; Pause/Fire returns to the main menu; all text is legible on the 128×160 display. Ticked. |
+| 2026-10-25 | Q1/Q2 complete. `test/host/run.sh` is the native suite (movement/wrap/collision, food/bonus, score, portal, power-up timers, EEPROM CRC/bit-flip, menus, pause, rendering; 216/36/18/9/12 oracle traces, 0 mismatches) and a top-level `Makefile` provides `make test`. New `tools/test_assets.py` regenerates the whole pipeline into a temp dir and checks the frozen `reference/d` SHA, original 6×378 maze bytes, the 21×23 extension, 61 sprite records + 4 tongue rotations + 63 firmware sprites, palette bounds, the extractor SHA-256 manifest, and a CRC32/size manifest of 31 firmware files; `gen_assets.py` now accepts `--assets`/`--out`. Golden files: `test/golden/assets_manifest.sha256`, `test/golden/assets_crc32.txt`. Both ticked. |
+| 2026-10-25 | Q3 complete. New `test/host/render_static.cpp` renders maze 0 + HUD through the real `field`/`hud`/`image` code with a stub ST7735 framebuffer; `tools/test_visual.py` builds/runs it and compares the 128×160 frame with the independent Python preview (0 px > 8/255) and the documented layout mockup's border/HUD (0 px > 8/255). The mockup's dark-green field is an early artifact; the field interior is covered by the independent preview. IGDB JPEGs are lossy/unaligned and covered by the tile/sprite/HUD golden checks. Ticked. |
+| 2026-10-25 | Q5 host/static analysis: new `test/host/bench_frame.cpp` counts pixels per tick and converts at 4 MHz SPI (4 µs/pixel). Normal dirty-cell frames peak at **12.75 ms** (all-tick avg 18.72 ms, including full redraws and a worst-case HUD refresh every tick); event-only full redraws are **108.79 ms** (initial 104.97 ms). `field_draw_map()` was optimized to paint each pixel once instead of `fill_screen` + field fill, cutting full redraw from 178.34 ms to 108.79 ms; the 4 MHz SPI lower bound for 20,480 px is 81.9 ms, so sub-50 ms full redraws are impossible at 8 MHz. Flash 46,580/65,536 B (18,956 B free), RAM 1,896/4,096 B. Q5 remains open only for the hardware stack high-water measurement. |
+| 2026-10-25 | P1/P2 complete. New `docs/hardware.md` (as-built ATmega644PA pin table, BOM, 5 V/3.3 V power, level shifting, as-built internal-RC fuses `E2/D7/FD` with the external-crystal `F7` option, USBasp setup) and `docs/build.md` (build, host tests, PlatformIO/manual avrdude flash, fuses, EEPROM backup/restore, recovery, display troubleshooting, no-SD note); new root `README.md` with quick start, controls and buzzer mode. `Makefile` adds `upload`, `fuses`, `fuses-read`. The historical ATmega32/16 MHz plan in §2 is marked superseded. Ticked. |
+| 2026-10-25 | Q5 stack instrumentation added: `src/drivers/stack_measure.{h,cpp}` fills free SRAM (`__bss_end` → `SP-32`) with `0xA5` at boot and scans for the deepest stack byte. `make stack-measure` / `make stack-measure-upload` build/upload the `-DSTACK_MEASURE=1` debug image; the pause and game-over screens show `STACK FREE: NNNN`. Host `test_stack_measure` covers the scan boundary. Debug image: RAM 1,915/4,096 B, flash 46,956/65,536 B; release image unchanged at RAM 1,896 B, flash 46,580 B. Full host suite passes. Q5 remains open only for the on-board reading. |
+| 2026-10-26 | Fixed two Extreme-mode regressions reported on hardware. (1) Tongue pickups stopped after the first maze: the portal shrink sets `ma=1`, so `next_level()` resets the periods but leaves the `b` and `C` counters out of phase; the pickup checks then ran on a non-movement tick with the local `t1/t2` reach still zero. `game_tick()` now computes the reach (original persistent `k/l`/`K/L`) at the start of every tick and refreshes it after a move, so the tongue collects food, bonus food and power-ups on any `C` tick. (2) Portal entry appeared to freeze for the shrink duration: the engine removed one tail segment per frame with `moved=false`, and the renderer only handled `tail_removed` inside its `if (moved)` branch, so no frames were drawn until `next_level()` full-redrew the new maze. `playfield_update()` now repaints the new tail and vacated cell whenever `tail_removed` is set, making every shrink frame visible; `next_level()` remains the only full redraw. Host regressions added to `test_tongue` (out-of-phase `C` tick food + power-up) and `test_playfield` (`test_g8_portal_shrink`). Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches); firmware builds at **RAM 1,896/4,096 B (46.3%), flash 46,710/65,536 B (71.3%)**. Hardware re-check of both fixes pending. |
+| 2026-10-26 | Death blink no longer rerenders the whole screen. `playfield_update()` now treats a death start/blink transition as a dirty-cell event: it marks every snake cell plus a 3x3 sprite-overhang margin in a `FIELD_CELLS` bitmap, repaints only those cells (base + items), redraws any item whose sprite can overhang into the block, and then draws the tongue and (only while `Ja/4` is even) the snake. Holds return immediately without drawing. The death path stays inside the regular dirty-cell pass, so simultaneous item changes and tongue retraction remain correct; `test_s3_death_blink` now expects local repaints for the start and every transition, compares each frame with a full redraw, and covers holds, a max-length snake, tongue retraction and a direct hidden-to-game-over transition. Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches); firmware builds at **RAM 1,896/4,096 B (46.3%), flash 47,800/65,536 B (72.9%)**. Hardware visual check of the smoother death blink pending. |
+| 2026-10-26 | Tongue enabled in Classic as well as Extreme (user request; the original gates it behind Extreme). `game_tick()` now queues `tongue=-1` on FIRE regardless of mode; normal food, bonus food and the tongue retraction/reach logic were already mode-independent, while power-ups, coin rush, lights-out, portal and the campaign stay Extreme-only. `test_tongue` now verifies a Classic FIRE grab plus Classic/Extreme no-fire behavior, and the tutorial's tongue demo sends the real FIRE key instead of forcing `g.tongue` directly. README, `game.h` comments and `KEY_FIRE` docs updated. Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches); firmware builds at **RAM 1,896/4,096 B (46.3%), flash 47,788/65,536 B (72.9%)**. Hardware check pending. |
+| 2026-10-26 | Portal entry now hides the snake head while the portal shrinks (`portal_state == 2`), matching the original `b.java` condition `!W || Y != 2 || n7 != A-1` and the reference screenshot. `playfield_draw_all()` and the incremental snake redraw skip the head segment; `playfield_update()` detects the state-2 transition (including direct 0→2 test setups) and marks the head cell dirty so the old head sprite is erased locally without a full redraw. `test_playfield` adds a head-hidden check: the head cell must change on entry, must equal a portal-only frame during shrink, and the incremental entry must match a full redraw. `docs/reference.md` updated. Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches); firmware builds at **RAM 1,896/4,096 B (46.3%), flash 48,008/65,536 B (73.3%)**. Hardware visual check pending. |
+| 2026-10-26 | S40 menu/title redesign from the user's Nokia reference screenshots. `ui/menu.cpp` now draws the original-style 128×160 `List`: decorative 14 px status bar (signal, battery, static `22:22`), 16 px `Snake EX2` title row with dotted leader and `1`, four 20 px mixed-case rows with dotted leaders, full-width light-blue selection band with dark text, and `Select`/`Exit` soft keys. `render/text` gained lowercase glyphs; `test_menu` covers the new layout, labels, lowercase glyphs and incremental repaints. `title_draw()` now uses blue S40 chrome and draws two silver trophies plus an `OPTIONS` button in the existing 16 px band below the original art; the old “PRESS ANY KEY” prompt was removed. `test_hud` covers the title art and chrome. Full host suite passes (216/36/18/9/12 oracle sets, 0 mismatches); firmware builds at **RAM 1,938/4,096 B (47.3%), flash 48,928/65,536 B (74.7%)**. Hardware visual check pending. |
+| 2026-10-26 | Fixed Instructions screen freeze reported on hardware. Root cause: `main.cpp` dequeued the button event, then `instructions_handle_input()` called `buttons_get_event()` again in its own drain loop. The first event was already consumed, so every press/repeat was discarded and the tutorial stayed on page 0. `instructions_handle_input()` now takes the already-dequeued `(ev, btn)` and processes exactly one event; `main.cpp` passes the event it owns. Added `test/host/test_instructions.cpp` covering page/demo-menu navigation, press/repeat/release, Fire/Pause exit, and a counter that fails if the handler drains the queue. Also moved the page indicator to the title row so it no longer overlaps the bottom navigation hint. Full host suite passes; firmware builds at **RAM 1,938/4,096 B (47.3%), flash 48,946/65,536 B (74.7%)**. Hardware re-check pending. |

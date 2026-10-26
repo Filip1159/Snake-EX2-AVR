@@ -23,8 +23,18 @@ void field_draw_cell(uint8_t col, uint8_t row, uint8_t tile) {
 }
 
 void field_draw_map(const uint8_t *map) {
-    st7735_fill_screen(0x0000);
+    /* Paint every pixel exactly once: field background, then the black top
+     * border, side borders and HUD area.  The previous full-screen clear was
+     * immediately overwritten by the field fill, doubling the SPI traffic on
+     * every full redraw (Q5). */
     st7735_fill_rect(FIELD_ORIGIN_X, FIELD_ORIGIN_Y, FIELD_WIDTH_PX, FIELD_HEIGHT_PX, COLOR_FIELD_BG);
+    st7735_fill_rect(0, 0, TFT_WIDTH, FIELD_ORIGIN_Y, 0x0000);
+    st7735_fill_rect(0, FIELD_ORIGIN_Y, FIELD_ORIGIN_X, FIELD_HEIGHT_PX, 0x0000);
+    uint8_t right_x = (uint8_t)(FIELD_ORIGIN_X + FIELD_WIDTH_PX);
+    st7735_fill_rect(right_x, FIELD_ORIGIN_Y, (uint8_t)(TFT_WIDTH - right_x),
+                     FIELD_HEIGHT_PX, 0x0000);
+    uint8_t hud_y = (uint8_t)(FIELD_ORIGIN_Y + FIELD_HEIGHT_PX);
+    st7735_fill_rect(0, hud_y, TFT_WIDTH, (uint8_t)(TFT_HEIGHT - hud_y), 0x0000);
     for (uint8_t r = 0; r < MAZE_ROWS; r++) {
         for (uint8_t c = 0; c < MAZE_COLS; c++) {
             uint8_t t = map[r * MAZE_COLS + c] & 0x0F;

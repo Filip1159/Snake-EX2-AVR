@@ -6,7 +6,8 @@
  * the original so its quirks reproduce bit-for-bit. Verified against the original engine
  * run headless (tools/oracle, test/host/test_game_oracle.cpp).
  *
- * Classic selection (G9), Extreme tongue/power-ups/campaign (G6-G8). No hardware dependencies.
+ * Classic selection (G9), tongue in both modes, Extreme power-ups/campaign (G6-G8). No
+ * hardware dependencies.
  */
 #ifndef GAME_GAME_H
 #define GAME_GAME_H
@@ -23,7 +24,7 @@
 #define KEY_RIGHT  0x02   /* K1 */
 #define KEY_UP     0x04   /* K2 */
 #define KEY_DOWN   0x08   /* K3 */
-#define KEY_FIRE   0x10   /* K4 tongue (Extreme only) */
+#define KEY_FIRE   0x10   /* K4 tongue */
 #define KEY_CCW    0x20   /* K5 relative turn, counter-clockwise */
 #define KEY_CW     0x40   /* K6 relative turn, clockwise */
 
@@ -42,7 +43,7 @@ typedef struct {
     /* configuration */
     uint8_t  speed;          /* Snake.I speedIndex 0..SPEED_INDEX_MAX */
     int8_t   maze;           /* da: -1 none, 0..4 */
-    bool     extreme;        /* W: Extreme mode (tongue, power-ups, campaign) */
+    bool     extreme;        /* W: Extreme mode (power-ups, campaign; tongue works in both) */
 
     /* snake: a[0] = tail ... a[len-1] = head (direction | 0x10 fat | 0x20/0x40 turn flags) */
     uint16_t len;            /* A */
@@ -120,7 +121,8 @@ extern "C" {
 /** Start a classic game. maze_map: FIELD_CELLS bytes or NULL for no maze (maze must then be -1). */
 void game_init(game_t *g, uint8_t speed, int8_t maze, const uint8_t *maze_map);
 
-/** Start a game in the given mode. Classic == game_init(); Extreme enables the tongue. */
+/** Start a game in the given mode. Classic == game_init(); Extreme adds power-ups and the
+ *  campaign. The tongue is available in both modes. */
 void game_init_mode(game_t *g, uint8_t speed, int8_t maze, const uint8_t *maze_map, bool extreme);
 
 /** Supply the mutable maze buffer and loader used when Extreme advances to a new maze.

@@ -32,6 +32,8 @@ extern const img_t IMG_HUD PROGMEM;
 extern const img_t IMG_HUD_ICON_BG PROGMEM;   /* 13x13 empty power-up slot at HUD (110,3) */
 extern const img_t IMG_DIGITS[10] PROGMEM;    /* 8x9 cells, glyph k = strip columns 7k..7k+7 */
 extern const img_t IMG_POWERUPS[10] PROGMEM;  /* 13x13, index = power-up id - 1 */
+extern const img_t IMG_HS_BADGE PROGMEM;      /* 11x11 first-place medal (SnakeCanvas.g) */
+extern const img_t IMG_HS_FRAME PROGMEM;      /* 60x21 score frame (SnakeCanvas.G) */
 
 extern const uint16_t WALL_PALETTE[WALL_PALETTE_SIZE] PROGMEM;
 extern const uint8_t  WALL_TILES[15][WALL_TILE_BYTES] PROGMEM;

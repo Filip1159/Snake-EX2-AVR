@@ -3,6 +3,8 @@
  */
 #include "ui/highscores.h"
 #include "render/text.h"
+#include "render/image.h"
+#include "render/hud.h"
 #include "drivers/st7735.h"
 #include "drivers/buttons.h"
 #include "drivers/eeprom_store.h"
@@ -10,15 +12,19 @@
 #include <Arduino.h>
 
 #define HS_W          128
-#define HS_H          160
-#define HS_HEADER_H   20
-#define HS_FIRST_Y    26
-#define HS_ROW_H      27
-#define HS_ROW_GAP    2
-#define HS_ROW_X      4
-#define HS_ROW_W      120
-#define HS_LABEL_W    50
-#define HS_SCORE_X    (HS_ROW_X + HS_LABEL_W + 4)
+#define HS_HEADER_H   20          /* entry screen header */
+#define HS_TITLE_H    12          /* table header; original rows start at y=15 */
+#define HS_FRAME_X    33
+#define HS_FRAME1_Y   15
+#define HS_FRAME2_Y   90
+#define HS_BADGE1_X   20
+#define HS_BADGE2_X   95
+#define HS_BADGE_Y    20
+#define HS_SCORE_X    39
+#define HS_SCORE1_Y   21
+#define HS_SCORE2_Y   96
+#define HS_SCORE_DIGITS 6
+#define HS_DIGIT_PITCH  8
 #define HS_FOOTER_Y   140
 #define HS_FOOTER_H   20
 
@@ -28,7 +34,6 @@
 #define HS_HEADER_INK 0xFFFF
 #define HS_HL_BG      0x001F
 #define HS_HL_INK     0xFFFF
-#define HS_RULE       0xC618
 #define HS_FOOTER_BG  0x0000
 #define HS_FOOTER_INK 0xFFFF
 
@@ -51,36 +56,16 @@ static void load_scores(void) {
     s_scores[1] = eeprom_get_score(base + 1);
 }
 
-static void draw_row(uint8_t index, uint16_t ink) {
-    uint8_t y = (uint8_t)(HS_FIRST_Y + index * (HS_ROW_H + HS_ROW_GAP));
-    char label[8];
-    label[0] = '#';
-    label[1] = '1' + index;
-    label[2] = '.';
-    label[3] = '\0';
-    text_draw(HS_ROW_X + 8, (uint8_t)(y + 10), label, 1, ink);
-
-    char buf[12];
-    uint32_t v = s_scores[index];
+/** Original six-digit score (SnakeCanvas.a: 8 px pitch, zero padded).  Empty
+ *  slots keep the reconstructed table's dashes rather than six zeros. */
+static void draw_score_value(uint8_t x, uint8_t y, uint32_t v) {
     if (v == 0) {
-        buf[0] = '-';
-        buf[1] = '-';
-        buf[2] = '-';
-        buf[3] = '-';
-        buf[4] = '-';
-        buf[5] = '-';
-        buf[6] = '\0';
+        for (uint8_t i = 0; i < HS_SCORE_DIGITS; i++)
+            st7735_fill_rect((uint8_t)(x + i * HS_DIGIT_PITCH + 1),
+                             (uint8_t)(y + 4), 6, 2, HS_INK);
     } else {
-        uint8_t pos = 0;
-        char rev[10];
-        do {
-            rev[pos++] = '0' + (v % 10);
-            v /= 10;
-        } while (v && pos < 10);
-        for (uint8_t i = 0; i < pos; i++) buf[i] = rev[pos - 1 - i];
-        buf[pos] = '\0';
+        hud_draw_number(x, y, v, HS_SCORE_DIGITS);
     }
-    text_draw(HS_SCORE_X, (uint8_t)(y + 10), buf, 1, ink);
 }
 
 void highscores_show(hs_mode_t mode) {
@@ -170,8 +155,11 @@ bool highscores_maybe_enter(uint32_t score, bool extreme) {
 
     entry_draw();
 
+    /* Snake.java:423 plays playSFX(11) when a score qualifies. */
+    if (eeprom_get_settings()->sound_on) buzzer_play(SFX_HIGH_SCORE);
+
     while (true) {
-        uint8_t raw = buttons_poll();
+        (void)buttons_poll();   /* updates the event queue */
         uint8_t btn;
         btn_event_t ev;
         while ((ev = buttons_get_event(&btn)) != BTN_EVENT_NONE) {
@@ -210,26 +198,28 @@ void highscores_draw(hs_mode_t mode) {
 
     st7735_fill_screen(HS_BG);
 
-    st7735_fill_rect(0, 0, HS_W, HS_HEADER_H, HS_HEADER_BG);
+    /* Tier-B header; the original screen has no title and its first row starts
+     * at y=15.  A 12 px bar leaves that original geometry intact. */
+    st7735_fill_rect(0, 0, HS_W, HS_TITLE_H, HS_HEADER_BG);
     {
-        char title[20];
+        char title[24];
         uint8_t p = 0;
         const char *pre = "HIGH SCORES ";
         while (*pre) title[p++] = *pre++;
         const char *m = HS_MODE_NAMES[mode];
         while (*m) title[p++] = *m++;
         title[p] = '\0';
-        text_draw(centered_x(title, 2), 3, title, 2, HS_HEADER_INK);
+        text_draw(centered_x(title, 1), 3, title, 1, HS_HEADER_INK);
     }
 
-    for (uint8_t i = 0; i < 2; i++) {
-        uint8_t y = (uint8_t)(HS_FIRST_Y + i * (HS_ROW_H + HS_ROW_GAP));
-        st7735_fill_rect(HS_ROW_X, y, HS_ROW_W, HS_ROW_H, HS_BG);
-        draw_row(i, HS_INK);
-        if (i + 1 < 2) {
-            st7735_fill_rect(HS_ROW_X, (uint8_t)(y + HS_ROW_H), HS_ROW_W, 1, HS_RULE);
-        }
-    }
+    /* Snake.java:710-719: two g medals beside the top score, two G frames, then
+     * the six-digit scores at (39,21) and (39,96). */
+    img_draw(HS_BADGE1_X, HS_BADGE_Y, &IMG_HS_BADGE);
+    img_draw(HS_BADGE2_X, HS_BADGE_Y, &IMG_HS_BADGE);
+    img_draw(HS_FRAME_X, HS_FRAME1_Y, &IMG_HS_FRAME);
+    img_draw(HS_FRAME_X, HS_FRAME2_Y, &IMG_HS_FRAME);
+    draw_score_value(HS_SCORE_X, HS_SCORE1_Y, s_scores[0]);
+    draw_score_value(HS_SCORE_X, HS_SCORE2_Y, s_scores[1]);
 
     st7735_fill_rect(0, HS_FOOTER_Y, HS_W, HS_FOOTER_H, HS_FOOTER_BG);
     text_draw(5, 146, "PAUSE BACK", 1, HS_FOOTER_INK);

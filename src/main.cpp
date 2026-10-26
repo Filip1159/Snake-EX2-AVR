@@ -3,7 +3,7 @@
  *
  * Boot flow (BACKLOG U1):
  *
- *   TITLE  original 128×128 art at y=16, auto-advance after 3 s or any key
+ *   TITLE  original 128×128 art at y=16 plus S40 trophies/Options, 3 s or key
  *   MENU   New game / High scores / Settings / Instructions (full 128×160)
  *   INFO   placeholder screen for the menu items owned by U2/U3/U5
  *   GAME   Classic or Extreme, using the saved EEPROM settings
@@ -22,6 +22,7 @@
 #include "drivers/buttons.h"
 #include "drivers/buzzer.h"
 #include "drivers/eeprom_store.h"
+#include "drivers/stack_measure.h"
 #include "assets/maze.h"
 #include "render/hud.h"
 #include "render/playfield.h"
@@ -74,10 +75,6 @@ static void play_sfx(uint8_t id) {
 
 static void enter_title(void) {
     title_draw();
-    {
-        const char *prompt = "PRESS ANY KEY";
-        text_draw(centered_x(prompt, 1), 150, prompt, 1, C_WHITE);
-    }
     s_title_deadline = millis() + TITLE_MS;
     s_screen = SCREEN_TITLE;
 }
@@ -200,6 +197,12 @@ static void start_game_from_settings(void) {
 /* ── Entry points ───────────────────────────────────────────────────────── */
 
 void setup() {
+#if STACK_MEASURE
+    /* Paint free SRAM before any driver/game work; the pause/game-over screens
+     * report the low-water mark.  Release builds compile this out. */
+    stack_measure_begin();
+#endif
+
     // Disable JTAG to free PORTC (PC2–PC5). ATmega644P/PA moves JTD to MCUCR;
     // the ATmega32 fallback used MCUCSR.
 #if defined(__AVR_ATmega644A__) || defined(__AVR_ATmega644__) || \
@@ -283,7 +286,7 @@ void loop() {
 
         case SCREEN_INSTRUCTIONS:
             if (ev == BTN_EVENT_PRESS || ev == BTN_EVENT_REPEAT) {
-                if (!instructions_handle_input()) {
+                if (!instructions_handle_input(ev, btn)) {
                     show_menu();
                 }
             }

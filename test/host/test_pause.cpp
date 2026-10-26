@@ -12,6 +12,11 @@ extern "C" uint8_t buttons_poll(void) { return 0; }
 extern "C" btn_event_t buttons_get_event(uint8_t *idx) { (void)idx; return BTN_EVENT_NONE; }
 extern "C" bool buttons_is_pressed(uint8_t btn) { (void)btn; return false; }
 
+/* Mock buzzer: the blocking UI loops must keep a playing effect advancing. */
+static int mock_buzzer_updates;
+extern "C" bool buzzer_is_playing(void) { return true; }
+extern "C" void buzzer_update(void) { mock_buzzer_updates++; }
+
 static uint16_t fb[160][128];
 static int fill_screen_calls;
 
@@ -57,6 +62,13 @@ int main() {
     CHECK(fill_screen_calls == 1);
     CHECK(fb[0][0] == 0x0000);
     CHECK(non_bg(0, 20, 128, 20, 0x0000) > 20);  /* title area */
+
+    /* Both blocking UI loops service the buzzer. */
+    mock_buzzer_updates = 0;
+    pause_handle_input();
+    CHECK(mock_buzzer_updates == 1);
+    gameover_handle_input();
+    CHECK(mock_buzzer_updates == 2);
 
     printf(fails ? "pause: %d FAILED\n" : "pause: all passed\n", fails);
     return fails != 0;

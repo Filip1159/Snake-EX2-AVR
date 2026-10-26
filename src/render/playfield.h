@@ -36,7 +36,10 @@ typedef struct {
     /* Extreme portal (G8) */
     bool    portal_valid;
     int16_t portal_x, portal_y;
-    uint8_t portal_state;
+    uint8_t portal_state;           /* 1 waiting, 2 shrinking (head hidden) */
+    /* Death blink (S3): original b.java draws the snake only while Ja/4 is even. */
+    bool    death_active;
+    bool    death_visible;
 } playfield_cache_t;
 
 #ifdef __cplusplus

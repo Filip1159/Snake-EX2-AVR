@@ -92,6 +92,7 @@
 #define TITLE_HEIGHT     128
 #define TITLE_TOP_COLOR    0xD612   // title row 0 colour (213,193,148)
 #define TITLE_BOTTOM_COLOR 0x62EA   // title row 127 colour (98,95,83)
+#define TITLE_BG_COLOR     0x9D5D   // S40 title-screen chrome blue (157,171,235)
 
 /* ── Snake start state ───────────────────────────────────────────────────── */
 /** Identical to original. BACKLOG.MD §1.1, Appendix B. */
@@ -283,16 +284,15 @@
 #define D_SIZE                15602
 
 /* ── Flash budget ─────────────────────────────────────────────────────────── */
-/** BACKLOG.MD §3.1. */
-#define FLASH_TOTAL_KB   32
-#define FLASH_TARGET_KB  30   // leave 2 KB reserve
+/** ATmega644PA: 64 KB flash, 4 KB SRAM. Q5 acceptance targets. */
+#define FLASH_TOTAL_KB   64
+#define FLASH_TARGET_KB  60   // leave 4 KB reserve
 
 /* ── RAM budget ───────────────────────────────────────────────────────────── */
-/** BACKLOG.MD §3.2. */
-#define RAM_TOTAL_B      2048   // 2 KB
+#define RAM_TOTAL_B      4096   // 4 KB
 #define RAM_FIELD_MAP    483    // uint8_t[483] maze map
 #define RAM_DIR_HISTORY  483    // uint8_t[483] direction history
-#define RAM_STACK_MIN    256    // minimum stack margin
+#define RAM_STACK_MIN    512    // minimum stack margin (Q5)
 
 /* ── Feature flags ────────────────────────────────────────────────────────── */
 /** BACKLOG.MD §4.7, §10 Decisions. */
@@ -300,5 +300,11 @@
 #define FEATURE_PASSIVE_BUZZER 0  // set to 1 when passive piezo is wired (D3)
 #define FEATURE_EXTREME_CAMPAIGN 1 // D5: implement all 60 stages
 #define FEATURE_RESUME_SAVE   0   // set to 1 if it fits (D7)
+
+/** Q5 debug instrumentation: paint free SRAM at boot and show the stack
+ *  high-water mark on the pause/game-over screen.  Release builds keep this 0. */
+#ifndef STACK_MEASURE
+#define STACK_MEASURE 0
+#endif
 
 #endif /* CONFIG_H */

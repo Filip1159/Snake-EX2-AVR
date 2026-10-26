@@ -7,6 +7,7 @@
 
 #include <stdint.h>
 #include <stdbool.h>
+#include "drivers/buttons.h"
 
 #ifdef __cplusplus
 extern "C" {
@@ -47,8 +48,12 @@ typedef enum {
 /** Initialize and show the instructions screen (starts at title page). */
 void instructions_show(void);
 
-/** Handle input while in instructions. Returns true to stay, false to exit to menu. */
-bool instructions_handle_input(void);
+/**
+ * Handle one already-dequeued button event while in instructions.
+ * Returns true to stay, false to exit to menu. main.cpp owns the event queue,
+ * so this function must not call buttons_get_event() itself.
+ */
+bool instructions_handle_input(btn_event_t ev, uint8_t btn);
 
 /** Launch a scripted demo game by ID. Returns when demo ends. */
 void instructions_launch_demo(int8_t demo_id);

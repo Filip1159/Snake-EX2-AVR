@@ -13,7 +13,7 @@ extern "C" {
 /** Draw one cell: tile 0 = background, 1..15 = wall tile. */
 void field_draw_cell(uint8_t col, uint8_t row, uint8_t tile);
 
-/** Black screen, background-coloured playfield, then all wall tiles of map[483]. */
+/** Background-coloured playfield, black border/HUD area, then all wall tiles of map[483]. */
 void field_draw_map(const uint8_t *map);
 
 #ifdef __cplusplus

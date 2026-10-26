@@ -4,15 +4,26 @@ set -e
 cd "$(dirname "$0")/../.."
 OUT=/tmp/opencode; mkdir -p $OUT
 F="-Wall -Wextra -I test/host -I src"
+# Q2: regenerate the asset pipeline in a temp dir and compare to test/golden/.
+python3 tools/test_assets.py
 g++ $F test/host/test_eeprom_store.cpp src/drivers/eeprom_store.cpp -o $OUT/t_eeprom && $OUT/t_eeprom
 g++ $F test/host/test_buttons.cpp src/drivers/buttons.cpp -o $OUT/t_buttons && $OUT/t_buttons
-[ -f build/assets/mazes_21x23.bin ] || { python3 tools/extract_snake_ex2.py && python3 tools/convert_assets.py; }
+# Sound table is generated from reference/sounds.nok; regenerate when absent.
+if [ ! -f src/assets/sounds_gen.cpp ] || [ ! -f src/assets/sounds_gen.h ]; then
+    python3 tools/gen_sounds.py
+fi
+g++ $F test/host/test_buzzer.cpp src/drivers/buzzer.cpp src/assets/sounds_gen.cpp -o $OUT/t_buzzer && $OUT/t_buzzer
+g++ $F test/host/test_stack_measure.cpp src/drivers/stack_measure.cpp -o $OUT/t_stack && $OUT/t_stack
+[ -f build/assets/mazes_21x23.bin ] && [ -f build/assets/preview/screen_128x160_maze0.png ] || { python3 tools/extract_snake_ex2.py && python3 tools/convert_assets.py; }
+# Q3: host-rendered 128x160 frame vs the independent preview and layout mockup.
+python3 tools/test_visual.py
 g++ $F test/host/test_maze_field.cpp src/assets/maze.cpp src/assets/assets_gen.cpp src/render/field.cpp -o $OUT/t_maze && $OUT/t_maze
-g++ $F test/host/test_hud.cpp src/render/hud.cpp src/render/image.cpp src/assets/assets_gen.cpp -o $OUT/t_hud && $OUT/t_hud
+g++ $F test/host/test_hud.cpp src/render/hud.cpp src/render/image.cpp src/render/text.cpp src/assets/assets_gen.cpp -o $OUT/t_hud && $OUT/t_hud
 g++ $F test/host/test_menu.cpp src/ui/menu.cpp src/render/text.cpp -o $OUT/t_menu && $OUT/t_menu
+g++ $F test/host/test_instructions.cpp src/ui/instructions.cpp -o $OUT/t_instructions && $OUT/t_instructions
 g++ $F test/host/test_settings.cpp src/ui/settings.cpp src/ui/menu.cpp src/render/text.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_settings && $OUT/t_settings
-g++ $F test/host/test_highscores.cpp src/ui/highscores.cpp src/ui/menu.cpp src/render/text.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_highscores && $OUT/t_highscores
-g++ $F test/host/test_pause.cpp src/ui/pause.cpp src/render/text.cpp -o $OUT/t_pause && $OUT/t_pause
+g++ $F test/host/test_highscores.cpp src/ui/highscores.cpp src/ui/menu.cpp src/render/text.cpp src/render/hud.cpp src/render/image.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_highscores && $OUT/t_highscores
+g++ $F test/host/test_pause.cpp src/ui/pause.cpp src/render/text.cpp src/drivers/stack_measure.cpp -o $OUT/t_pause && $OUT/t_pause
 g++ $F -I test/host test/host/test_snake_sprites.cpp src/render/snake_sprites.cpp src/assets/assets_gen.cpp -o $OUT/t_spr && $OUT/t_spr
 # Oracle replay needs the traces produced from the decompiled original; regenerate when absent (requires a JDK).
 if [ ! -d build/oracle/traces ]; then
@@ -53,3 +64,5 @@ g++ $F test/host/test_tongue.cpp src/game/game.cpp src/assets/maze.cpp src/asset
 g++ $F test/host/test_powerup.cpp src/game/game.cpp -o $OUT/t_powerup && $OUT/t_powerup
 g++ $F test/host/test_extreme.cpp src/game/game.cpp -o $OUT/t_extreme && $OUT/t_extreme
 g++ $F test/host/test_playfield.cpp src/game/game.cpp src/render/playfield.cpp src/render/field.cpp src/render/sprite.cpp src/render/snake_sprites.cpp src/assets/assets_gen.cpp src/assets/maze.cpp -o $OUT/t_pf && $OUT/t_pf
+# Q5: pixel-count frame budget at 4 MHz SPI (normal frames < 50 ms; full redraws reported).
+g++ $F test/host/bench_frame.cpp src/game/game.cpp src/render/playfield.cpp src/render/field.cpp src/render/sprite.cpp src/render/snake_sprites.cpp src/render/hud.cpp src/render/image.cpp src/render/text.cpp src/assets/assets_gen.cpp src/assets/maze.cpp -o $OUT/bench_frame && $OUT/bench_frame

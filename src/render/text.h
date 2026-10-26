@@ -1,9 +1,10 @@
 /**
  * text.h — 5×7 bitmap text for menus and simple screens.
  *
- * The font is the original project's compact ASCII subset: A–Z, 0–9, space,
- * '-', '.' and ':'. Lowercase is folded to uppercase. Each glyph occupies a
- * 5×7 box; the horizontal advance is 5 + 1 pixels, scaled.
+ * The font is a compact ASCII subset: A–Z, a–z, 0–9, space, '-', '.' and
+ * ':'. Each glyph occupies a 5×7 box; the horizontal advance is 5 + 1 pixels,
+ * scaled. Lowercase glyphs use a 5-row x-height so mixed-case S40-style menus
+ * can be rendered without changing the fixed-pitch layout used elsewhere.
  */
 #ifndef RENDER_TEXT_H
 #define RENDER_TEXT_H
