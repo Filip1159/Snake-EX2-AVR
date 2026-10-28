@@ -17,8 +17,12 @@ void sprite_reset_clip(void) {
 
 void sprite_draw(int16_t x, int16_t y, uint8_t id) {
     if (id >= SPRITE_COUNT) return;
+    sprite_draw_p(x, y, &SPRITES[id]);
+}
+
+void sprite_draw_p(int16_t x, int16_t y, const spr_t *spr_P) {
     spr_t s;
-    memcpy_P(&s, &SPRITES[id], sizeof(spr_t));
+    memcpy_P(&s, spr_P, sizeof(spr_t));
 
     for (uint8_t row = 0; row < s.h; row++) {
         int16_t sy = y + row;

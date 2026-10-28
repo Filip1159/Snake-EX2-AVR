@@ -92,7 +92,11 @@
 #define TITLE_HEIGHT     128
 #define TITLE_TOP_COLOR    0xD612   // title row 0 colour (213,193,148)
 #define TITLE_BOTTOM_COLOR 0x62EA   // title row 127 colour (98,95,83)
-#define TITLE_BG_COLOR     0x9D5D   // S40 title-screen chrome blue (157,171,235)
+/** Final-score frame (60x21) and trophies on the title screen after a game. */
+#define TITLE_SCORE_X      34
+#define TITLE_SCORE_Y      130
+#define TITLE_TROPHY_L_X   8
+#define TITLE_TROPHY_R_X   101
 
 /* ── Snake start state ───────────────────────────────────────────────────── */
 /** Identical to original. BACKLOG.MD §1.1, Appendix B. */

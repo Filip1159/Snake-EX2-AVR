@@ -47,13 +47,19 @@ int main() {
 
     title_draw();
     CHECK(diff(title, 128, 0, 0, TITLE_X, TITLE_Y, 128, 128) == 0);
-    CHECK(fb[0][0] == TITLE_BG_COLOR && fb[15][127] == TITLE_BG_COLOR);
-    CHECK(fb[144][0] == TITLE_BG_COLOR && fb[159][127] == TITLE_BG_COLOR);
+    CHECK(fb[0][0] == TITLE_TOP_COLOR && fb[15][127] == TITLE_TOP_COLOR);
+    CHECK(fb[144][0] == TITLE_BOTTOM_COLOR && fb[159][127] == TITLE_BOTTOM_COLOR);
     CHECK(at(title, 128, 0, 0) == TITLE_TOP_COLOR && at(title, 128, 5, 127) == TITLE_BOTTOM_COLOR);
-    CHECK(fb[146][9] == 0x0010);          /* left trophy cup outline */
-    CHECK(fb[146][111] == 0x0010);        /* right trophy cup outline */
-    CHECK(fb[146][36] == 0x8410);         /* Options button top edge */
-    CHECK(fb[148][44] == 0x0010);         /* Options label */
+
+    /* score variant: frame, six digits, trophies only for a new best */
+    title_draw_score(123456, false);
+    CHECK(diff(title, 128, 0, 0, TITLE_X, TITLE_Y, 128, 100) == 0);   /* art above the frame untouched */
+    CHECK(fb[TITLE_SCORE_Y + 2][TITLE_SCORE_X + 30] != TITLE_BOTTOM_COLOR);   /* frame drawn */
+    uint16_t no_trophy_l = fb[TITLE_SCORE_Y + 10][TITLE_TROPHY_L_X + 9];
+    CHECK(no_trophy_l == TITLE_BOTTOM_COLOR);
+    title_draw_score(123456, true);
+    CHECK(fb[TITLE_SCORE_Y + 10][TITLE_TROPHY_L_X + 9] != TITLE_BOTTOM_COLOR);
+    CHECK(fb[TITLE_SCORE_Y + 10][TITLE_TROPHY_R_X + 9] != TITLE_BOTTOM_COLOR);
 
     memset(fb, 0, sizeof fb);
     hud_draw_bar();

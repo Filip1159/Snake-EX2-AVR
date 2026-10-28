@@ -3,7 +3,8 @@
  *
  * Boot flow (BACKLOG U1):
  *
- *   TITLE  original 128×128 art at y=16 plus S40 trophies/Options, 3 s or key
+ *   TITLE  full-screen title art, 3 s or key; after a game it shows the final
+ *          score (plus two trophies for a new best) and waits for a key
  *   MENU   New game / High scores / Settings / Instructions (full 128×160)
  *   INFO   placeholder screen for the menu items owned by U2/U3/U5
  *   GAME   Classic or Extreme, using the saved EEPROM settings
@@ -47,6 +48,7 @@
 
 static screen_t          s_screen;
 static uint32_t          s_title_deadline;
+static bool              s_title_timed;
 
 static uint8_t           s_map[MAZE_CELLS];
 /* Game state (also accessed from instructions.cpp via gamestate.h) */
@@ -76,6 +78,14 @@ static void play_sfx(uint8_t id) {
 static void enter_title(void) {
     title_draw();
     s_title_deadline = millis() + TITLE_MS;
+    s_title_timed = true;
+    s_screen = SCREEN_TITLE;
+}
+
+/* Title screen shown after a game: stays until a key is pressed. */
+static void enter_title_score(uint32_t score, bool new_best) {
+    title_draw_score(score, new_best);
+    s_title_timed = false;
     s_screen = SCREEN_TITLE;
 }
 
@@ -326,7 +336,7 @@ void loop() {
 
     uint32_t now = millis();
 
-    if (s_screen == SCREEN_TITLE && (int32_t)(now - s_title_deadline) >= 0) {
+    if (s_screen == SCREEN_TITLE && s_title_timed && (int32_t)(now - s_title_deadline) >= 0) {
         enter_menu();
     }
 
@@ -362,21 +372,13 @@ void loop() {
         } else if (!s_over_shown) {
             /* Game just ended: show game-over screen and handle input */
             s_over_shown = true;
+            /* The table's first slot of the mode, read before an entry can change it. */
+            bool new_best = s_game.score > eeprom_get_score(s_game.extreme ? 2 : 0);
             if (!s_hs_checked && highscores_qualifies(s_game.score, s_game.extreme)) {
                 s_hs_checked = true;
                 highscores_maybe_enter(s_game.score, s_game.extreme);
             }
-            gameover_show(s_game.score, s_game.extreme);
-            while (true) {
-                go_action_t ga = gameover_handle_input();
-                if (ga == GO_ACTION_RESTART) {
-                    start_game_from_settings();
-                    break;
-                } else if (ga == GO_ACTION_MENU) {
-                    show_menu();
-                    break;
-                }
-            }
+            enter_title_score(s_game.score, new_best);
         }
     }
 

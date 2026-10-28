@@ -7,6 +7,7 @@
 #define RENDER_HUD_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -24,9 +25,12 @@ void hud_draw_bonus(uint16_t value);
 /** Power-up icon for id 1..10, or 0 to restore the empty slot. */
 void hud_draw_powerup(uint8_t id);
 
-/** Title art (128x128) at (0,16), with S40 blue chrome, two trophies and an
- *  Options button in the 16-row band below the art. */
+/** Full-screen title: the 128x128 art at (0,16), the rows above/below extended
+ *  with its flat top/bottom colours. */
 void title_draw(void);
+/** Title screen with the last game's final score in the score frame; when
+ *  `new_best` is set, a trophy is shown on each side of the frame. */
+void title_draw_score(uint32_t score, bool new_best);
 
 #ifdef __cplusplus
 }
