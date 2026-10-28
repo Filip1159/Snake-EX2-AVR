@@ -189,7 +189,7 @@ Title/menu (U1):
   (`TITLE_BG_COLOR`); the 16 px band below the art contains two silver trophies and a
   centred `OPTIONS` button, approximating the supplied Nokia reference screenshot.
 - `src/ui/menu.{h,cpp}` reconstructs the S40 `List` screen at 128×160: a 14 px
-  decorative status bar (signal bars, battery, static `22:22` time), a 16 px
+  decorative status bar (antenna, signal bars, battery, no-SIM mark, "Silent" and a static `18:52` clock, a transparent sprite extracted from `Nokia-GUI4.jpg` by `tools/gen_statusbar.py`), a 16 px
   `Snake EX2` title row with a dotted leader and list indicator `1`, four 20 px
   mixed-case rows (New game / High scores / Settings / Instructions) with dotted
   leaders, and a 20 px soft-key row with `Select`/`Exit`. The selected row is a

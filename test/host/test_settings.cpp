@@ -58,6 +58,17 @@ static int count_color(int x, int y, int w, int h, uint16_t color) {
     return n;
 }
 
+/* Pixels in the box that are dark navy ink (RGB565 red < 6, green < 24). */
+static int dark_count(int x, int y, int w, int h) {
+    int n = 0;
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            uint16_t c = fb[y + j][x + i];
+            if ((c >> 11) < 6 && ((c >> 5) & 63) < 24) n++;
+        }
+    return n;
+}
+
 int main() {
     settings_init();
     CHECK(settings_selected() == SETTING_MODE);
@@ -79,7 +90,7 @@ int main() {
     /* Full screen draw: wallpaper + chrome, four rows, "Save" and "Back" soft keys */
     settings_init();
     settings_draw();
-    CHECK(count_color(0, 0, 128, 14, 0x0010) > 20);           /* status bar */
+    CHECK(dark_count(96, 1, 32, 12) > 25);           /* status bar: the clock digits */
     CHECK(count_color(4, 18, 50, 7, 0x0000) > 15);            /* "Settings" title */
     for (int i = 0; i < 4; i++) {
         int y = 30 + i * 20;

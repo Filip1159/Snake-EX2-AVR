@@ -36,9 +36,20 @@ static int count_color(int x, int y, int w, int h, uint16_t color) {
     return n;
 }
 
+/* Pixels in the box that are dark navy ink (RGB565 red < 6, green < 24). */
+static int dark_count(int x, int y, int w, int h) {
+    int n = 0;
+    for (int j = 0; j < h; j++)
+        for (int i = 0; i < w; i++) {
+            uint16_t c = fb[y + j][x + i];
+            if ((c >> 11) < 6 && ((c >> 5) & 63) < 24) n++;
+        }
+    return n;
+}
+
 int main() {
     credits_draw();
-    CHECK(count_color(0, 0, 128, 14, 0x0010) > 20);          /* status bar */
+    CHECK(dark_count(96, 1, 32, 12) > 25);          /* status bar: the clock digits */
     CHECK(count_color(4, 18, 54, 7, 0x0000) > 20);           /* title */
     CHECK(count_color(100, 148, 24, 7, 0x0010) > 10);        /* "Back" bottom-right */
 

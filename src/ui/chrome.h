@@ -38,7 +38,8 @@ void chrome_restore(uint8_t x, uint8_t w, uint8_t y, uint8_t h);
 /** Dotted leader line (1 px dots every 4 px) from x0 to x1 at row y. */
 void chrome_dotted_leader(uint8_t x0, uint8_t x1, uint8_t y, uint16_t color);
 
-/** Signal bars, battery and clock (decorative: the port has no RTC). */
+/** Status bar copied from the S40 screenshot: signal, battery, "Silent" and a clock
+ *  (decorative: the port has no RTC). Transparent, so it works on any background. */
 void chrome_draw_status_bar(void);
 
 /** Title row: `title` at the left, a dotted leader, and optional `right` text right-aligned

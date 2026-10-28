@@ -4,14 +4,12 @@
 #include "ui/chrome.h"
 #include "render/text.h"
 #include "render/image.h"
+#include "render/sprite.h"
 #include "assets/wallpaper.h"
+#include "assets/statusbar.h"
 #include "drivers/st7735.h"
 
-#define CHROME_STATUS_INK 0x0010
-#define CHROME_BATT_FILL  0x07E0
 #define CHROME_RIGHT_EDGE 126          /* right-aligned title text ends here */
-
-#define CHROME_STATUS_TIME "22:22"
 
 static bool     s_flat;
 static uint16_t s_flat_color;
@@ -37,26 +35,7 @@ void chrome_dotted_leader(uint8_t x0, uint8_t x1, uint8_t y, uint16_t color) {
 }
 
 void chrome_draw_status_bar(void) {
-    /* Signal-strength bars at the left. */
-    for (uint8_t i = 0; i < 4; i++) {
-        uint8_t h = (uint8_t)(2 + i * 2);
-        st7735_fill_rect((uint8_t)(3 + i * 3), (uint8_t)(11 - h), 2, h,
-                         CHROME_STATUS_INK);
-    }
-    chrome_dotted_leader(18, 38, 7, CHROME_DOT);
-
-    /* Battery outline, fill and terminal nub. */
-    st7735_fill_rect(42, 3, 11, 7, CHROME_STATUS_INK);
-    st7735_fill_rect(43, 4, 9, 5, 0xFFFF);
-    st7735_fill_rect(44, 5, 6, 3, CHROME_BATT_FILL);
-    st7735_fill_rect(53, 5, 2, 3, CHROME_STATUS_INK);
-    chrome_dotted_leader(57, 94, 7, CHROME_DOT);
-
-    {
-        uint8_t w = text_width(CHROME_STATUS_TIME, 1);
-        text_draw((uint8_t)(CHROME_W - w - 2), 3, CHROME_STATUS_TIME, 1,
-                  CHROME_STATUS_INK);
-    }
+    sprite_draw_p(STATUSBAR_X, STATUSBAR_Y, &SPR_STATUSBAR);
 }
 
 void chrome_draw_title(const char *title, const char *right) {
