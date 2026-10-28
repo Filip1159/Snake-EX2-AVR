@@ -1,12 +1,12 @@
 #!/usr/bin/env python3
 """Reconstruct the Nokia Series 40 menu wallpaper into src/assets/wallpaper.{h,cpp}.
 
-Input: Nokia-GUI.jpg, Nokia-GUI2.jpg, Nokia-GUI3.jpg (240x320 photos of the same
-wallpaper with different list text on top).  Pixels covered by UI (status bar, title,
-selection band, scroll bar, soft keys, list text) are dropped per image, the remaining
-pixels are averaged and the holes are inpainted from their surroundings.  The result is
-scaled to 128x160, reduced to a small palette and stored as an RLE `img_t`
-(same format as tools/gen_assets.py).
+Input: Nokia-GUI4.jpg (idle screen) and Nokia-GUI6.jpg (list), native 128x160 screenshots
+of the same wallpaper.  Pixels covered by UI (status bar, title, list text, selection band,
+scroll bar, soft keys, watermark) are dropped per image (MASKS), the second screenshot is
+brightness-matched to the first and fills what the first hides, and the remaining holes
+are inpainted from their surroundings.  The result is reduced to a small palette and
+stored as an RLE `img_t` (same format as tools/gen_assets.py).
 
     python3 tools/gen_wallpaper.py [--colors N]     # needs numpy + opencv-python-headless
 """
@@ -24,33 +24,59 @@ from gen_assets import encode_rle, decode_rle, fmt, rgb565   # noqa: E402
 W, H = 128, 160
 
 
+# Regions covered by UI or the SOFTPEDIA watermark in each 128x160 screenshot: (x0, y0, x1, y1).
+# Pixels outside them are wallpaper.  The photos' left column and bottom rows are screen border.
+EDGE = [(0, 0, 2, 160), (0, 157, 128, 160)]
+MASKS = {
+    "Nokia-GUI4.jpg": EDGE + [          # idle screen: "orange", Go to / Menu / Names
+        (0, 0, 128, 14), (0, 14, 40, 28),
+        (20, 132, 108, 147), (0, 145, 28, 158), (44, 142, 82, 158),
+        (96, 145, 128, 158), (34, 150, 92, 158)],
+    "Nokia-GUI6.jpg": EDGE + [          # list: title, On/Off, band, scroll bar, Select / Back
+        (0, 0, 128, 28), (0, 28, 128, 62), (120, 28, 128, 90),
+        (6, 131, 92, 147), (20, 142, 86, 158), (102, 145, 128, 158)],
+}
+BASE = "Nokia-GUI4.jpg"                  # cleanest photo: the reference colours
+GROW = 2                                # JPEG bleed around UI pixels
+
+
+def clean_mask(name, shape):
+    bad = np.zeros(shape[:2], np.uint8)
+    for x0, y0, x1, y1 in MASKS[name]:
+        bad[y0:y1, x0:x1] = 255
+    return cv2.dilate(bad, np.ones((2 * GROW + 1, 2 * GROW + 1), np.uint8)) == 0
+
+
 def reconstruct():
-    ims = [cv2.imread(str(ROOT / n)) for n in ("Nokia-GUI.jpg", "Nokia-GUI2.jpg", "Nokia-GUI3.jpg")]
-    fixed = np.zeros(ims[0].shape[:2], np.uint8)
-    for x0, y0, x1, y1 in ((0, 0, 240, 46),      # status bar + list title
-                           (0, 46, 226, 82),     # selection band
-                           (224, 40, 240, 320),  # scroll bar
-                           (0, 272, 240, 320)):  # watermark + soft keys
-        fixed[y0:y1, x0:x1] = 255
-    acc = np.zeros(ims[0].shape, np.float64)
-    cnt = np.zeros(ims[0].shape[:2])
-    for im in ims:
-        # list text is near-black navy; the wallpaper's green channel never goes below ~130
-        bad = ((im[..., 1] < 110) | ((im[..., 2] > 235) & (im[..., 1] > 235))).astype(np.uint8) * 255
-        bad = cv2.bitwise_or(cv2.dilate(bad, np.ones((7, 7), np.uint8)), fixed)
-        ok = bad == 0
-        acc[ok] += im[ok]
-        cnt[ok] += 1
-    known = cnt > 0
-    est = np.zeros_like(acc)
-    est[known] = acc[known] / cnt[known, None]
+    ims = {n: cv2.imread(str(ROOT / n)) for n in MASKS}
+    assert all(im.shape[:2] == (H, W) for im in ims.values()), "screenshots must be 128x160"
+    ok = {n: clean_mask(n, ims[n].shape) for n in ims}
+
+    # Photos differ in brightness: map each secondary onto the base per channel (least squares)
+    # over the pixels both show cleanly.
+    base = ims[BASE].astype(np.float64)
+    est = base.copy()
+    known = ok[BASE].copy()
+    for n in ims:
+        if n == BASE:
+            continue
+        both = ok[n] & ok[BASE]
+        im = ims[n].astype(np.float64)
+        fitted = np.empty_like(im)
+        for c in range(3):
+            g, o = np.polyfit(im[both, c], base[both, c], 1)
+            fitted[..., c] = im[..., c] * g + o
+        take = ok[n] & ~known
+        est[take] = fitted[take]
+        known |= take
+
     est = est.astype(np.uint8)
-    hole = cv2.dilate((~known).astype(np.uint8) * 255, np.ones((5, 5), np.uint8))
-    filled = cv2.inpaint(est, hole, 12, cv2.INPAINT_TELEA)
-    soft = cv2.GaussianBlur(filled, (0, 0), 6)
-    k = cv2.GaussianBlur(hole, (0, 0), 6)[..., None] / 255.0
+    hole = cv2.dilate((~known).astype(np.uint8) * 255, np.ones((3, 3), np.uint8))
+    filled = cv2.inpaint(est, hole, 8, cv2.INPAINT_TELEA)
+    soft = cv2.GaussianBlur(filled, (0, 0), 4)
+    k = cv2.GaussianBlur(hole, (0, 0), 3)[..., None] / 255.0
     out = (filled * (1 - k) + soft * k).astype(np.uint8)
-    return cv2.GaussianBlur(out, (0, 0), 1.5)
+    return cv2.GaussianBlur(out, (0, 0), 1.6)
 
 
 def main():
@@ -58,7 +84,7 @@ def main():
     ap.add_argument("--colors", type=int, default=32)
     args = ap.parse_args()
 
-    img = cv2.resize(reconstruct(), (W, H), interpolation=cv2.INTER_AREA)
+    img = reconstruct()
     rgb = cv2.cvtColor(img, cv2.COLOR_BGR2RGB)
     samples = rgb.reshape(-1, 3).astype(np.float32)
     cv2.setRNGSeed(1)
@@ -70,7 +96,7 @@ def main():
     data = encode_rle(idx)
     assert decode_rle(data, W * H) == idx
 
-    body = f"""/* GENERATED by tools/gen_wallpaper.py from Nokia-GUI*.jpg — do not edit. */
+    body = f"""/* GENERATED by tools/gen_wallpaper.py from Nokia-GUI4/6.jpg — do not edit. */
 #include "assets/wallpaper.h"
 
 static const uint16_t PAL_WALLPAPER[{len(pal)}] PROGMEM = {{
