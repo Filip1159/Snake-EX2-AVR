@@ -3,48 +3,13 @@
 #include "render/text.h"
 #include "render/image.h"
 #include "assets/wallpaper.h"
-#include "drivers/st7735.h"
+#include "mock_display.h"
 #include <stdio.h>
 #include <string.h>
 
-static uint16_t fb[160][128];
 static uint16_t wall[160][128];   /* reference wallpaper */
 static uint16_t before[160][128];
 static uint16_t incremental[160][128];
-static int fill_screen_calls;
-static int op_counter;                 /* one tick per drawing call */
-static int stamp[160][128];            /* tick of the last write to each pixel */
-
-extern "C" {
-void st7735_fill_screen(uint16_t c) {
-    fill_screen_calls++;
-    for (int y = 0; y < 160; y++)
-        for (int x = 0; x < 128; x++) fb[y][x] = c;
-}
-void st7735_fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t c) {
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (x + i < 128 && y + j < 160) { fb[y + j][x + i] = c; stamp[y + j][x + i] = ++op_counter; }
-}
-static int s_cx, s_cy, s_cw, s_px;
-void st7735_stream_begin(uint8_t x, uint8_t y, uint8_t w, uint8_t h) { (void)h; ++op_counter; s_cx = x; s_cy = y; s_cw = w; s_px = 0; }
-void st7735_stream_pixels(uint16_t c, uint8_t n) {
-    while (n--) { fb[s_cy + s_px / s_cw][s_cx + s_px % s_cw] = c; stamp[s_cy + s_px / s_cw][s_cx + s_px % s_cw] = op_counter; s_px++; }
-}
-void st7735_stream_end(void) {}
-
-}
-
-static int fails;
-#define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
-
-static int non_bg(int x, int y, int w, int h, uint16_t bg) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (fb[y + j][x + i] != bg) n++;
-    return n;
-}
 
 /* pixels in a region that differ from the wallpaper */
 static int non_wall(int x, int y, int w, int h) {
@@ -52,14 +17,6 @@ static int non_wall(int x, int y, int w, int h) {
     for (int j = 0; j < h; j++)
         for (int i = 0; i < w; i++)
             if (fb[y + j][x + i] != wall[y + j][x + i]) n++;
-    return n;
-}
-
-static int count_color(int x, int y, int w, int h, uint16_t c) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (fb[y + j][x + i] == c) n++;
     return n;
 }
 

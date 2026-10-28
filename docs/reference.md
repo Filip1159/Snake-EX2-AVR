@@ -188,6 +188,12 @@ Title/menu (U1):
   idle or any button press. The surrounding bands use the S40 title-screen blue
   (`TITLE_BG_COLOR`); the 16 px band below the art contains two silver trophies and a
   centred `OPTIONS` button, approximating the supplied Nokia reference screenshot.
+- `src/app/` holds the application's screens (`screen_title/menu/settings/credits/scores/game.cpp`)
+  behind one `screen_t` interface (`enter`, `on_button`, `tick`); `screen_goto()` switches and
+  `main.cpp` only does hardware setup and the loop. `src/ui/list.{h,cpp}` is the shared S40 list
+  widget (title index, rows with optional values, band, scrollbar, soft keys) used by the menus
+  and Settings. Host UI tests share `test/host/mock_display.h`; `test_screens.cpp` drives the
+  screens with button events.
 - `src/ui/menu.{h,cpp}` reconstructs the S40 `List` screen at 128×160: a 14 px
   decorative status bar (antenna, signal bars, battery, no-SIM mark, "Silent" and a static `18:52` clock, a transparent sprite extracted from `Nokia-GUI4.jpg` by `tools/gen_statusbar.py`), a 16 px
   `Snake EX2` title row with list indicator `1`, four 20 px

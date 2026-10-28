@@ -9,13 +9,7 @@
  * band with white text.
  */
 #include "ui/menu.h"
-#include "ui/chrome.h"
-#include "render/text.h"
-#include "drivers/st7735.h"
-
-#define MENU_FIRST_Y    CHROME_LIST_Y
-#define MENU_ROW_H      CHROME_ROW_H
-
+#include "ui/list.h"
 
 #define MENU_SOFT_LEFT  "Select"
 
@@ -37,61 +31,25 @@ static const char *const SCORE_LABELS[MENU_SCORES_COUNT] = {
     "Extreme",
 };
 
-static const char *const *s_labels = MAIN_LABELS;   /* the open list */
-static uint8_t s_count = MENU_ITEM_COUNT;
-static const char *s_title = "Snake EX2";
-static const char *s_right = "Exit";
 static uint8_t s_selected;
 static bool s_continue;          /* main menu has the "Continue" row */
 static bool s_main_open = true;  /* the open list is the main menu */
 
-static void draw_title_bar(void) {
-    /* Index of the highlighted item, 1-based, right-aligned over the scrollbar (the 5 px
-     * digit sits exactly above the thumb body). */
-    char idx[2] = { (char)('1' + s_selected), '\0' };
-    chrome_draw_title(s_title, idx);
-}
-
-/* What the open list looked like when it was drawn, to erase exactly that later. */
-static const char *const *s_drawn_labels;
-static uint8_t s_drawn_count;
-static uint8_t s_drawn_selected;
-
-static void erase_content(void) {
-    for (uint8_t i = 0; i < s_drawn_count; i++) {
-        uint8_t y = (uint8_t)(MENU_FIRST_Y + i * MENU_ROW_H);
-        if (i == s_drawn_selected)
-            chrome_restore(0, CHROME_BAND_W, y, MENU_ROW_H);
-        else
-            chrome_restore(4, (uint8_t)(text_width_big(s_drawn_labels[i]) + 1), (uint8_t)(y + 3), CHROME_BIG_H);
-    }
-}
-
-/* `repaint`: the row may hold the band or other leftovers, so put the wallpaper back first. */
-static void draw_row(uint8_t index, bool repaint) {
-    uint8_t y = (uint8_t)(MENU_FIRST_Y + index * MENU_ROW_H);
-    bool selected = (index == s_selected);
-    uint16_t ink = selected ? CHROME_HL_INK : CHROME_INK;
-    const char *label = s_labels[index];
-
-    if (selected) chrome_draw_band(y);
-    else if (repaint) chrome_restore(0, CHROME_BAND_W, y, MENU_ROW_H);
-    text_draw_big(4, (uint8_t)(y + 3), label, ink);
-}
+static list_t s_list = { "Snake EX2", MAIN_LABELS, MENU_ITEM_COUNT, 0, MENU_SOFT_LEFT, "Exit" };
 
 void menu_open(menu_list_t list) {
     if (list == MENU_LIST_SCORES) {
         s_main_open = false;
-        s_labels = SCORE_LABELS;
-        s_count = MENU_SCORES_COUNT;
-        s_title = "High scores";
-        s_right = "Back";
+        s_list.labels = SCORE_LABELS;
+        s_list.count = MENU_SCORES_COUNT;
+        s_list.title = "High scores";
+        s_list.right_key = "Back";
     } else {
         s_main_open = true;
-        s_labels = s_continue ? CONTINUE_LABELS : MAIN_LABELS;
-        s_count = s_continue ? MENU_ITEM_COUNT + 1 : MENU_ITEM_COUNT;
-        s_title = "Snake EX2";
-        s_right = "Exit";
+        s_list.labels = s_continue ? CONTINUE_LABELS : MAIN_LABELS;
+        s_list.count = s_continue ? MENU_ITEM_COUNT + 1 : MENU_ITEM_COUNT;
+        s_list.title = "Snake EX2";
+        s_list.right_key = "Exit";
     }
     s_selected = 0;
 }
@@ -116,8 +74,8 @@ void menu_init(void) {
 
 void menu_move(int8_t delta) {
     int8_t next = (int8_t)s_selected + delta;
-    while (next < 0) next += s_count;
-    while (next >= s_count) next -= s_count;
+    while (next < 0) next += s_list.count;
+    while (next >= s_list.count) next -= s_list.count;
     s_selected = (uint8_t)next;
 }
 
@@ -135,28 +93,8 @@ const char *menu_item_label(menu_item_t item) {
     return MAIN_LABELS[item];
 }
 
-void menu_draw_item(menu_item_t item) {
-    if (item < 0 || item >= s_count) return;
-    draw_row((uint8_t)item, true);
-    if (item == s_selected) {
-        s_drawn_selected = s_selected;
-        draw_title_bar();                                   /* shows the item index */
-        chrome_scrollbar_move(s_count, s_selected);
-    }
-}
+void menu_draw_item(menu_item_t item) { list_draw_row(&s_list, (uint8_t)item, s_selected); }
 
-void menu_show(void) {
-    chrome_begin(erase_content);       /* wallpaper + status bar only if not already there */
-    draw_title_bar();
-    for (uint8_t i = 0; i < s_count; i++) draw_row(i, false);
-    s_drawn_labels = s_labels;
-    s_drawn_count = s_count;
-    s_drawn_selected = s_selected;
-    chrome_scrollbar_draw(s_count, s_selected);
-    chrome_draw_softkeys(MENU_SOFT_LEFT, s_right);
-}
+void menu_show(void) { list_show(&s_list, s_selected); }
 
-void menu_draw(void) {
-    chrome_invalidate();
-    menu_show();
-}
+void menu_draw(void) { list_draw(&s_list, s_selected); }

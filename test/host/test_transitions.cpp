@@ -5,7 +5,7 @@
 #include "ui/highscores.h"
 #include "ui/chrome.h"
 #include "drivers/eeprom_store.h"
-#include "drivers/st7735.h"
+#include "mock_display.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -14,44 +14,7 @@ unsigned mock_eeprom_writes;
 uint32_t mock_millis = 0;
 extern "C" void buzzer_play(uint8_t id) { (void)id; }
 
-static uint16_t fb[160][128];
 static uint16_t ref[160][128];
-static int writes[160][128];       /* pixel writes since the last reset */
-
-extern "C" {
-void st7735_fill_screen(uint16_t c) {
-    for (int y = 0; y < 160; y++)
-        for (int x = 0; x < 128; x++) { fb[y][x] = c; writes[y][x]++; }
-}
-void st7735_fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t c) {
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (x + i < 128 && y + j < 160) { fb[y + j][x + i] = c; writes[y + j][x + i]++; }
-}
-static int s_cx, s_cy, s_cw, s_px;
-void st7735_stream_begin(uint8_t x, uint8_t y, uint8_t w, uint8_t h) { (void)h; s_cx = x; s_cy = y; s_cw = w; s_px = 0; }
-void st7735_stream_pixels(uint16_t c, uint8_t n) {
-    while (n--) {
-        int y = s_cy + s_px / s_cw, x = s_cx + s_px % s_cw;
-        fb[y][x] = c; writes[y][x]++; s_px++;
-    }
-}
-void st7735_stream_end(void) {}
-void st7735_backlight(bool on) { (void)on; }
-}
-
-static int fails;
-#define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
-
-static void reset_writes(void) { memset(writes, 0, sizeof writes); }
-
-static int written(int x, int y, int w, int h) {
-    int n = 0;
-    for (int j = 0; j < h; j++) for (int i = 0; i < w; i++) n += writes[y + j][x + i] != 0;
-    return n;
-}
-
-static int total_written(void) { return written(0, 0, 128, 160); }
 
 /* Screen as drawn from scratch by `full`, compared with what the incremental path left. */
 static bool matches_full(void (*full)(void)) {

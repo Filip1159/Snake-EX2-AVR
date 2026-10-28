@@ -2,20 +2,14 @@
  * settings.cpp — Settings screen (BACKLOG U2), laid out like the main menu.
  */
 #include "ui/settings.h"
-#include "ui/chrome.h"
-#include "render/text.h"
-#include "drivers/st7735.h"
+#include "ui/list.h"
 #include "drivers/eeprom_store.h"
 #include "assets/maze.h"
 #include "config.h"
 #include <avr/pgmspace.h>
 
-#define SET_FIRST_Y     30
-#define SET_LABEL_X     4
-#define SET_VALUE_END   116          /* values are right-aligned to this x */
 
 static setting_item_t s_selected;
-static uint8_t s_value_x[SETTING_COUNT];   /* left edge of each drawn value */
 
 /* Shadow copy of the settings so we can edit before saving. */
 static game_mode_t s_mode;
@@ -49,50 +43,9 @@ static const char *value_text(uint8_t item, char *buf) {
     }
 }
 
-static uint8_t row_y(uint8_t index) {
-    return (uint8_t)(SET_FIRST_Y + index * CHROME_ROW_H);
-}
-
-static uint8_t value_x(const char *value) {
-    return (uint8_t)(SET_VALUE_END - text_width_big(value));
-}
-
-static void draw_title(void) {
-    char idx[2] = { (char)('1' + s_selected), '\0' };
-    chrome_draw_title("Settings", idx);
-}
-
-static setting_item_t s_drawn_selected;    /* highlighted row on screen, to erase it later */
-
-static void erase_content(void) {
-    for (uint8_t i = 0; i < SETTING_COUNT; i++) {
-        uint8_t y = row_y(i);
-        if (i == s_drawn_selected) {
-            chrome_restore(0, CHROME_BAND_W, y, CHROME_ROW_H);
-        } else {
-            chrome_restore(SET_LABEL_X, (uint8_t)(text_width_big(SET_LABELS[i]) + 1), (uint8_t)(y + 3), CHROME_BIG_H);
-            chrome_restore(s_value_x[i], (uint8_t)(SET_VALUE_END + 1 - s_value_x[i]), (uint8_t)(y + 3), CHROME_BIG_H);
-        }
-    }
-}
-
-/* `repaint`: the row may hold the band or an older value, so put the wallpaper back first. */
-static void draw_row(uint8_t index, bool repaint) {
-    uint8_t y = row_y(index);
-    bool selected = (index == s_selected);
-    uint16_t ink = selected ? CHROME_HL_INK : CHROME_INK;
-    char buf[9];
-    const char *value = value_text(index, buf);
-    const char *label = SET_LABELS[index];
-
-    if (selected) chrome_draw_band(y);
-    else if (repaint) chrome_restore(0, CHROME_BAND_W, y, CHROME_ROW_H);
-    text_draw_big(SET_LABEL_X, (uint8_t)(y + 3), label, ink);
-
-    uint8_t vx = value_x(value);
-    text_draw_big(vx, (uint8_t)(y + 3), value, ink);
-    s_value_x[index] = vx;
-}
+static const list_t LIST = {
+    "Settings", SET_LABELS, SETTING_COUNT, value_text, "Save", "Back",
+};
 
 void settings_init(void) {
     const settings_t *st = eeprom_get_settings();
@@ -142,42 +95,10 @@ void settings_save(void) {
     eeprom_save_settings(&st);
 }
 
-void settings_show(void) {
-    chrome_begin(erase_content);       /* wallpaper + status bar only if not already there */
-    draw_title();
-    for (uint8_t i = 0; i < SETTING_COUNT; i++) draw_row(i, false);
-    s_drawn_selected = s_selected;
-    chrome_scrollbar_draw(SETTING_COUNT, s_selected);
-    chrome_draw_softkeys("Save", "Back");
-}
+void settings_show(void) { list_show(&LIST, s_selected); }
 
-void settings_draw(void) {
-    chrome_invalidate();
-    settings_show();
-}
+void settings_draw(void) { list_draw(&LIST, s_selected); }
 
-void settings_draw_row(setting_item_t item) {
-    if (item < 0 || item >= SETTING_COUNT) return;
-    draw_row((uint8_t)item, true);
-    if (item == s_selected) {
-        s_drawn_selected = s_selected;
-        draw_title();                                       /* shows the item index */
-        chrome_scrollbar_move(SETTING_COUNT, s_selected);
-    }
-}
+void settings_draw_row(setting_item_t item) { list_draw_row(&LIST, (uint8_t)item, s_selected); }
 
-void settings_draw_value(setting_item_t item) {
-    if (item < 0 || item >= SETTING_COUNT) return;
-    if (item != s_selected) { draw_row((uint8_t)item, true); return; }
-
-    /* Only the value changes: repaint the band behind the wider of the old and new text
-     * and draw the new text. The label and the rest of the row stay untouched. */
-    uint8_t y = row_y((uint8_t)item);
-    char buf[9];
-    const char *value = value_text((uint8_t)item, buf);
-    uint8_t vx = value_x(value);
-    uint8_t x0 = vx < s_value_x[item] ? vx : s_value_x[item];
-    chrome_draw_band_part(y, x0, (uint8_t)(SET_VALUE_END - x0));
-    text_draw_big(vx, (uint8_t)(y + 3), value, CHROME_HL_INK);
-    s_value_x[item] = vx;
-}
+void settings_draw_value(setting_item_t item) { list_draw_value(&LIST, (uint8_t)item, s_selected); }

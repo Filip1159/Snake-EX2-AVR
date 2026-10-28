@@ -2,7 +2,7 @@
 # Host unit tests (no hardware). Run from project root: sh test/host/run.sh
 set -e
 cd "$(dirname "$0")/../.."
-OUT=/tmp/opencode; mkdir -p $OUT
+OUT=${TMPDIR:-/tmp}/snake_host_tests; mkdir -p $OUT
 F="-Wall -Wextra -I test/host -I src"
 # Q2: regenerate the asset pipeline in a temp dir and compare to test/golden/.
 python3 tools/test_assets.py
@@ -19,11 +19,16 @@ g++ $F test/host/test_stack_measure.cpp src/drivers/stack_measure.cpp -o $OUT/t_
 python3 tools/test_visual.py
 g++ $F test/host/test_maze_field.cpp src/assets/maze.cpp src/assets/assets_gen.cpp src/render/field.cpp -o $OUT/t_maze && $OUT/t_maze
 g++ $F test/host/test_hud.cpp src/render/hud.cpp src/render/image.cpp src/render/sprite.cpp src/assets/trophy.cpp src/render/text.cpp src/assets/assets_gen.cpp -o $OUT/t_hud && $OUT/t_hud
-g++ $F test/host/test_menu.cpp src/ui/menu.cpp src/ui/chrome.cpp src/render/sprite.cpp src/assets/statusbar.cpp src/assets/wallpaper.cpp src/render/image.cpp src/render/text.cpp src/assets/assets_gen.cpp -o $OUT/t_menu && $OUT/t_menu
-g++ $F test/host/test_credits.cpp src/ui/credits.cpp src/ui/chrome.cpp src/render/sprite.cpp src/assets/statusbar.cpp src/assets/wallpaper.cpp src/render/image.cpp src/render/text.cpp src/assets/assets_gen.cpp -o $OUT/t_credits && $OUT/t_credits
-g++ $F test/host/test_settings.cpp src/ui/settings.cpp src/ui/menu.cpp src/ui/chrome.cpp src/render/sprite.cpp src/assets/statusbar.cpp src/assets/wallpaper.cpp src/render/image.cpp src/render/text.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_settings && $OUT/t_settings
-g++ $F test/host/test_highscores.cpp src/ui/highscores.cpp src/ui/menu.cpp src/ui/chrome.cpp src/render/sprite.cpp src/assets/statusbar.cpp src/assets/wallpaper.cpp src/render/text.cpp src/render/hud.cpp src/assets/trophy.cpp src/render/image.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_highscores && $OUT/t_highscores
-g++ $F test/host/test_transitions.cpp src/ui/settings.cpp src/ui/menu.cpp src/ui/credits.cpp src/ui/highscores.cpp src/ui/chrome.cpp src/render/sprite.cpp src/assets/statusbar.cpp src/assets/wallpaper.cpp src/render/text.cpp src/render/hud.cpp src/assets/trophy.cpp src/render/image.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_transitions && $OUT/t_transitions
+# UI tests share one "chrome" source set: the screen chrome, list widget, sprites, text, assets.
+CHROME="src/ui/chrome.cpp src/ui/list.cpp src/render/sprite.cpp src/assets/statusbar.cpp src/assets/wallpaper.cpp src/render/image.cpp src/render/text.cpp src/assets/assets_gen.cpp"
+STORE="src/drivers/eeprom_store.cpp src/assets/maze.cpp"
+HS="src/ui/highscores.cpp src/render/hud.cpp src/assets/trophy.cpp"
+g++ $F test/host/test_menu.cpp src/ui/menu.cpp $CHROME -o $OUT/t_menu && $OUT/t_menu
+g++ $F test/host/test_credits.cpp src/ui/credits.cpp $CHROME -o $OUT/t_credits && $OUT/t_credits
+g++ $F test/host/test_settings.cpp src/ui/settings.cpp src/ui/menu.cpp $CHROME $STORE -o $OUT/t_settings && $OUT/t_settings
+g++ $F test/host/test_highscores.cpp $HS src/ui/menu.cpp $CHROME $STORE -o $OUT/t_highscores && $OUT/t_highscores
+g++ $F test/host/test_transitions.cpp $HS src/ui/settings.cpp src/ui/menu.cpp src/ui/credits.cpp $CHROME $STORE -o $OUT/t_transitions && $OUT/t_transitions
+g++ $F test/host/test_screens.cpp src/app/screen.cpp src/app/screen_menu.cpp src/app/screen_scores.cpp src/app/screen_credits.cpp src/app/screen_settings.cpp $HS src/ui/settings.cpp src/ui/menu.cpp src/ui/credits.cpp $CHROME $STORE -o $OUT/t_screens && $OUT/t_screens
 g++ $F test/host/test_savegame.cpp src/game/savegame.cpp src/game/game.cpp src/game/rng.cpp src/drivers/eeprom_store.cpp -o $OUT/t_savegame && $OUT/t_savegame
 g++ $F -I test/host test/host/test_snake_sprites.cpp src/render/snake_sprites.cpp src/assets/assets_gen.cpp -o $OUT/t_spr && $OUT/t_spr
 # Oracle replay needs the traces produced from the decompiled original; regenerate when absent (requires a JDK).

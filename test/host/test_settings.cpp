@@ -2,7 +2,7 @@
 #include "ui/settings.h"
 #include "render/text.h"
 #include "drivers/eeprom_store.h"
-#include "drivers/st7735.h"
+#include "mock_display.h"
 #include <stdio.h>
 #include <string.h>
 
@@ -14,60 +14,7 @@ unsigned mock_eeprom_writes;
 /* Mock millis for the Arduino mock. */
 uint32_t mock_millis = 0;
 
-static uint16_t fb[160][128];
 static uint16_t before[160][128];
-static int fill_screen_calls;
-
-extern "C" {
-void st7735_fill_screen(uint16_t c) {
-    fill_screen_calls++;
-    for (int y = 0; y < 160; y++)
-        for (int x = 0; x < 128; x++) fb[y][x] = c;
-}
-void st7735_fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t c) {
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (x + i < 128 && y + j < 160) fb[y + j][x + i] = c;
-}
-static int s_cx, s_cy, s_cw, s_px;
-void st7735_stream_begin(uint8_t x, uint8_t y, uint8_t w, uint8_t h) { (void)h; s_cx = x; s_cy = y; s_cw = w; s_px = 0; }
-void st7735_stream_pixels(uint16_t c, uint8_t n) {
-    while (n--) { fb[s_cy + s_px / s_cw][s_cx + s_px % s_cw] = c; s_px++; }
-}
-void st7735_stream_end(void) {}
-
-void st7735_backlight(bool on) { (void)on; }
-}
-
-static int fails;
-#define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
-
-static int non_bg(int x, int y, int w, int h, uint16_t bg) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (fb[y + j][x + i] != bg) n++;
-    return n;
-}
-
-static int count_color(int x, int y, int w, int h, uint16_t color) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (fb[y + j][x + i] == color) n++;
-    return n;
-}
-
-/* Pixels in the box that are dark navy ink (RGB565 red < 6, green < 24). */
-static int dark_count(int x, int y, int w, int h) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++) {
-            uint16_t c = fb[y + j][x + i];
-            if ((c >> 11) < 6 && ((c >> 5) & 63) < 24) n++;
-        }
-    return n;
-}
 
 int main() {
     settings_init();
@@ -151,9 +98,6 @@ int main() {
     settings_init();
     settings_move(2); /* SPEED */
     settings_draw();
-    {
-        uint8_t init_speed = 0; /* we don't have access to shadow; just test clamp */
-    }
     settings_adjust(1);
     settings_draw_value(settings_selected());
     /* second adjust should increment again */

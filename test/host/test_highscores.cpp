@@ -2,7 +2,7 @@
 #include "ui/highscores.h"
 #include "config.h"
 #include "render/text.h"
-#include "drivers/st7735.h"
+#include "mock_display.h"
 #include "drivers/buzzer.h"
 #include "drivers/eeprom_store.h"
 #include "Arduino.h"
@@ -22,53 +22,6 @@ extern "C" void buzzer_play(uint8_t id) { mock_play_id = id; mock_play_count++; 
 extern "C" void buzzer_stop(void) {}
 extern "C" bool buzzer_is_playing(void) { return false; }
 extern "C" void buzzer_update(void) { }
-
-static uint16_t fb[160][128];
-static int fill_screen_calls;
-static uint8_t st_x, st_y, st_w, st_h, st_px;
-
-extern "C" {
-void st7735_fill_screen(uint16_t c) {
-    fill_screen_calls++;
-    for (int y = 0; y < 160; y++)
-        for (int x = 0; x < 128; x++) fb[y][x] = c;
-}
-void st7735_fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t c) {
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (x + i < 128 && y + j < 160) fb[y + j][x + i] = c;
-}
-void st7735_stream_begin(uint8_t x, uint8_t y, uint8_t w, uint8_t h) {
-    st_x = x; st_y = y; st_w = w; st_h = h; st_px = 0;
-}
-void st7735_stream_pixels(uint16_t c, uint8_t n) {
-    while (n--) {
-        fb[st_y + st_px / st_w][st_x + st_px % st_w] = c;
-        st_px++;
-    }
-}
-void st7735_stream_end(void) { (void)st_h; }
-void st7735_backlight(bool on) { (void)on; }
-}
-
-static int fails;
-#define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
-
-static int non_bg(int x, int y, int w, int h, uint16_t bg) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (fb[y + j][x + i] != bg) n++;
-    return n;
-}
-
-static int count_color(int x, int y, int w, int h, uint16_t color) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (fb[y + j][x + i] == color) n++;
-    return n;
-}
 
 int main() {
     /* Qualify check with empty scores */
