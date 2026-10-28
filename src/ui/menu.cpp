@@ -52,14 +52,30 @@ static void draw_title_bar(void) {
     chrome_draw_title(s_title, idx);
 }
 
-static void draw_row(uint8_t index) {
+/* What the open list looked like when it was drawn, to erase exactly that later. */
+static const char *const *s_drawn_labels;
+static uint8_t s_drawn_count;
+static uint8_t s_drawn_selected;
+
+static void erase_content(void) {
+    for (uint8_t i = 0; i < s_drawn_count; i++) {
+        uint8_t y = (uint8_t)(MENU_FIRST_Y + i * MENU_ROW_H);
+        if (i == s_drawn_selected)
+            chrome_restore(0, CHROME_BAND_W, y, MENU_ROW_H);
+        else
+            chrome_restore(4, (uint8_t)(text_width_big(s_drawn_labels[i]) + 1), (uint8_t)(y + 3), CHROME_BIG_H);
+    }
+}
+
+/* `repaint`: the row may hold the band or other leftovers, so put the wallpaper back first. */
+static void draw_row(uint8_t index, bool repaint) {
     uint8_t y = (uint8_t)(MENU_FIRST_Y + index * MENU_ROW_H);
     bool selected = (index == s_selected);
     uint16_t ink = selected ? CHROME_HL_INK : CHROME_INK;
     const char *label = s_labels[index];
 
     if (selected) chrome_draw_band(y);
-    else          chrome_restore(0, CHROME_SCROLL_X, y, MENU_ROW_H);   /* the bar is never touched */
+    else if (repaint) chrome_restore(0, CHROME_BAND_W, y, MENU_ROW_H);
     text_draw_big(4, (uint8_t)(y + 3), label, ink);
 }
 
@@ -121,24 +137,26 @@ const char *menu_item_label(menu_item_t item) {
 
 void menu_draw_item(menu_item_t item) {
     if (item < 0 || item >= s_count) return;
-    draw_row((uint8_t)item);
+    draw_row((uint8_t)item, true);
     if (item == s_selected) {
+        s_drawn_selected = s_selected;
         draw_title_bar();                                   /* shows the item index */
         chrome_scrollbar_move(s_count, s_selected);
     }
 }
 
-void menu_draw(void) {
-    chrome_use_wallpaper();
-    chrome_draw_wallpaper();
-
-    chrome_draw_status_bar();
+void menu_show(void) {
+    chrome_begin(erase_content);       /* wallpaper + status bar only if not already there */
     draw_title_bar();
-
-    for (uint8_t i = 0; i < s_count; i++) {
-        draw_row(i);
-    }
-
+    for (uint8_t i = 0; i < s_count; i++) draw_row(i, false);
+    s_drawn_labels = s_labels;
+    s_drawn_count = s_count;
+    s_drawn_selected = s_selected;
     chrome_scrollbar_draw(s_count, s_selected);
     chrome_draw_softkeys(MENU_SOFT_LEFT, s_right);
+}
+
+void menu_draw(void) {
+    chrome_invalidate();
+    menu_show();
 }

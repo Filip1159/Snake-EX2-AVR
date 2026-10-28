@@ -12,6 +12,9 @@ extern "C" {
  *  repository link centred, "Back" soft key. */
 void credits_draw(void);
 
+/** Same screen coming from another wallpaper screen: repaints only what differs. */
+void credits_show(void);
+
 #ifdef __cplusplus
 }
 #endif

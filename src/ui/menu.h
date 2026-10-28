@@ -62,6 +62,11 @@ const char *menu_item_label(menu_item_t item);
 /** Repaint the complete 128×160 main-menu screen. */
 void menu_draw(void);
 
+/** Show the open list coming from another wallpaper screen (settings, credits, the other
+ *  list): the status bar, wallpaper and unchanged labels stay; only what differs is painted.
+ *  Same as menu_draw() when the last screen was not a wallpaper one. */
+void menu_show(void);
+
 /**
  * Repaint one menu row (including its highlight/arrow) without clearing the
  * screen. Use this for the old and new selection after menu_move() so normal

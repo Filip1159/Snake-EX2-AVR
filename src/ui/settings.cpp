@@ -62,7 +62,22 @@ static void draw_title(void) {
     chrome_draw_title("Settings", idx);
 }
 
-static void draw_row(uint8_t index) {
+static setting_item_t s_drawn_selected;    /* highlighted row on screen, to erase it later */
+
+static void erase_content(void) {
+    for (uint8_t i = 0; i < SETTING_COUNT; i++) {
+        uint8_t y = row_y(i);
+        if (i == s_drawn_selected) {
+            chrome_restore(0, CHROME_BAND_W, y, CHROME_ROW_H);
+        } else {
+            chrome_restore(SET_LABEL_X, (uint8_t)(text_width_big(SET_LABELS[i]) + 1), (uint8_t)(y + 3), CHROME_BIG_H);
+            chrome_restore(s_value_x[i], (uint8_t)(SET_VALUE_END + 1 - s_value_x[i]), (uint8_t)(y + 3), CHROME_BIG_H);
+        }
+    }
+}
+
+/* `repaint`: the row may hold the band or an older value, so put the wallpaper back first. */
+static void draw_row(uint8_t index, bool repaint) {
     uint8_t y = row_y(index);
     bool selected = (index == s_selected);
     uint16_t ink = selected ? CHROME_HL_INK : CHROME_INK;
@@ -71,7 +86,7 @@ static void draw_row(uint8_t index) {
     const char *label = SET_LABELS[index];
 
     if (selected) chrome_draw_band(y);
-    else          chrome_restore(0, CHROME_SCROLL_X, y, CHROME_ROW_H);   /* the bar is never touched */
+    else if (repaint) chrome_restore(0, CHROME_BAND_W, y, CHROME_ROW_H);
     text_draw_big(SET_LABEL_X, (uint8_t)(y + 3), label, ink);
 
     uint8_t vx = value_x(value);
@@ -127,20 +142,25 @@ void settings_save(void) {
     eeprom_save_settings(&st);
 }
 
-void settings_draw(void) {
-    chrome_use_wallpaper();
-    chrome_draw_wallpaper();
-    chrome_draw_status_bar();
+void settings_show(void) {
+    chrome_begin(erase_content);       /* wallpaper + status bar only if not already there */
     draw_title();
-    for (uint8_t i = 0; i < SETTING_COUNT; i++) draw_row(i);
+    for (uint8_t i = 0; i < SETTING_COUNT; i++) draw_row(i, false);
+    s_drawn_selected = s_selected;
     chrome_scrollbar_draw(SETTING_COUNT, s_selected);
     chrome_draw_softkeys("Save", "Back");
 }
 
+void settings_draw(void) {
+    chrome_invalidate();
+    settings_show();
+}
+
 void settings_draw_row(setting_item_t item) {
     if (item < 0 || item >= SETTING_COUNT) return;
-    draw_row((uint8_t)item);
+    draw_row((uint8_t)item, true);
     if (item == s_selected) {
+        s_drawn_selected = s_selected;
         draw_title();                                       /* shows the item index */
         chrome_scrollbar_move(SETTING_COUNT, s_selected);
     }
@@ -148,7 +168,7 @@ void settings_draw_row(setting_item_t item) {
 
 void settings_draw_value(setting_item_t item) {
     if (item < 0 || item >= SETTING_COUNT) return;
-    if (item != s_selected) { draw_row((uint8_t)item); return; }
+    if (item != s_selected) { draw_row((uint8_t)item, true); return; }
 
     /* Only the value changes: repaint the band behind the wider of the old and new text
      * and draw the new text. The label and the rest of the row stay untouched. */

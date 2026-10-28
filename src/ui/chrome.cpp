@@ -8,14 +8,25 @@
 #include "assets/wallpaper.h"
 #include "assets/statusbar.h"
 #include "drivers/st7735.h"
+#include <string.h>
 
 #define CHROME_RIGHT_EDGE 123          /* right-aligned title text ends here */
 
 static bool     s_flat;
 static uint16_t s_flat_color;
+static bool     s_ready;                  /* wallpaper + status bar are on screen */
+static void   (*s_eraser)(void);          /* erases the open screen's own content */
+
+/* What the shared chrome currently shows, so a new screen only repaints what differs. */
+typedef struct { const char *s; uint8_t x, w; } label_slot_t;
+static label_slot_t s_title, s_key_left, s_key_right;
+static struct { char c; uint8_t x, w; } s_index;
+static bool    s_bar_on;
+static uint8_t s_bar_count;
 
 void chrome_use_wallpaper(void) { s_flat = false; }
-void chrome_use_flat(uint16_t color) { s_flat = true; s_flat_color = color; }
+void chrome_use_flat(uint16_t color) { s_flat = true; s_flat_color = color; s_ready = false; }
+void chrome_invalidate(void) { s_ready = false; }
 
 void chrome_draw_wallpaper(void) {
     if (s_flat) st7735_fill_rect(0, 0, CHROME_W, 160, s_flat_color);
@@ -29,27 +40,62 @@ void chrome_restore(uint8_t x, uint8_t w, uint8_t y, uint8_t h) {
 
 static bool s_silent;
 
-void chrome_set_silent(bool silent) { s_silent = silent; }
+#define SILENT_W 36
+#define SILENT_H 12
 
 void chrome_draw_status_bar(void) {
     sprite_draw_p(STATUSBAR_X, STATUSBAR_Y, &SPR_STATUSBAR);
     if (s_silent) sprite_draw_p(SILENT_X, SILENT_Y, &SPR_SILENT);
 }
 
-void chrome_draw_title(const char *title, const char *right) {
-    chrome_restore(0, CHROME_W, CHROME_TITLE_Y, CHROME_TITLE_H);
-    text_draw(4, CHROME_TITLE_Y, title, 1, CHROME_INK);
-
-    if (right) {
-        uint8_t rx = (uint8_t)(CHROME_RIGHT_EDGE + 1 - text_width(right, 1));
-        text_draw(rx, CHROME_TITLE_Y, right, 1, CHROME_INK);
-    }
+void chrome_set_silent(bool silent) {
+    if (silent == s_silent) return;
+    s_silent = silent;
+    if (!s_ready) return;
+    /* only the label's area of the bar changes */
+    chrome_restore(SILENT_X, SILENT_W, SILENT_Y, SILENT_H);
+    if (s_silent) sprite_draw_p(SILENT_X, SILENT_Y, &SPR_SILENT);
 }
 
-uint8_t chrome_draw_softkey_right(const char *label) {
-    uint8_t rx = (uint8_t)(CHROME_W - text_width(label, 1) - 4);
-    text_draw(rx, CHROME_SOFTKEY_Y, label, 1, CHROME_SOFT_INK);
-    return rx;
+void chrome_begin(void (*erase)(void)) {
+    if (!s_ready || s_flat) {
+        s_flat = false;
+        chrome_draw_wallpaper();
+        chrome_draw_status_bar();
+        s_title.s = s_key_left.s = s_key_right.s = 0;
+        s_index.c = 0;
+        s_bar_on = false;
+        s_ready = true;
+    } else if (s_eraser) {
+        s_eraser();                       /* the previous screen's labels, nothing else */
+    }
+    s_eraser = erase;
+}
+
+static bool same_text(const char *a, const char *b) {
+    return a == b || (a && b && strcmp(a, b) == 0);
+}
+
+void chrome_draw_title(const char *title, const char *right) {
+    if (!same_text(s_title.s, title)) {
+        if (s_title.s) chrome_restore(s_title.x, s_title.w, CHROME_TITLE_Y, CHROME_TEXT_H);
+        s_title.s = title;
+        if (title) {
+            s_title.x = 4;
+            s_title.w = (uint8_t)(text_width(title, 1) + 1);
+            text_draw(s_title.x, CHROME_TITLE_Y, title, 1, CHROME_INK);
+        }
+    }
+    char c = right ? right[0] : 0;           /* the list index: one character */
+    if (c != s_index.c) {
+        if (s_index.c) chrome_restore(s_index.x, s_index.w, CHROME_TITLE_Y, CHROME_TEXT_H);
+        s_index.c = c;
+        if (c) {
+            s_index.w = (uint8_t)(text_width(right, 1) + 1);
+            s_index.x = (uint8_t)(CHROME_RIGHT_EDGE + 1 - text_width(right, 1));
+            text_draw(s_index.x, CHROME_TITLE_Y, right, 1, CHROME_INK);
+        }
+    }
 }
 
 /* The S40 selection band is a vertical gradient, (4,123,222) at the top to (0,94,199) at
@@ -90,23 +136,41 @@ void chrome_draw_band(uint8_t y) {
 }
 
 void chrome_draw_softkeys(const char *left, const char *right) {
-    uint8_t lw = text_width_big(left);
-    uint8_t lx = (uint8_t)((CHROME_W - lw) / 2);
-    text_draw_big(lx, CHROME_SOFTKEY_BIG_Y, left, CHROME_SOFT_INK);
-    chrome_draw_softkey_right(right);
+    if (!same_text(s_key_left.s, left)) {
+        if (s_key_left.s) chrome_restore(s_key_left.x, s_key_left.w, CHROME_SOFTKEY_BIG_Y, CHROME_BIG_H);
+        s_key_left.s = left;
+        if (left) {
+            uint8_t lw = text_width_big(left);
+            s_key_left.x = (uint8_t)((CHROME_W - lw) / 2);
+            s_key_left.w = (uint8_t)(lw + 1);
+            text_draw_big(s_key_left.x, CHROME_SOFTKEY_BIG_Y, left, CHROME_SOFT_INK);
+        }
+    }
+    if (!same_text(s_key_right.s, right)) {
+        if (s_key_right.s) chrome_restore(s_key_right.x, s_key_right.w, CHROME_SOFTKEY_Y, CHROME_TEXT_H);
+        s_key_right.s = right;
+        if (right) {
+            uint8_t rw = text_width(right, 1);
+            s_key_right.x = (uint8_t)(CHROME_W - rw - 4);
+            s_key_right.w = (uint8_t)(rw + 1);
+            text_draw(s_key_right.x, CHROME_SOFTKEY_Y, right, 1, CHROME_SOFT_INK);
+        }
+    }
 }
 
 /* ── Scrollbar ────────────────────────────────────────────────────────────── */
 
 /* As on the S40 screenshots: a thin 3 px track from the top of the list down to just above
- * the right soft key, centred under a 6 px thumb (5 px body + 1 px shadow on its right)
- * that is brighter than the track: white to peach with a brown edge.  The thumb is
+ * the right soft key, centred under a 4 px thumb with 1 px rounded corners
+ * that is brighter than the track: cream to peach with a brown edge.  The thumb is
  * 1/count of the track and travels over it with the selection.  The selection band stops
  * before the bar. */
 #define SCROLL_W        6
 #define SCROLL_H        111                        /* ends 5 px above the soft key row */
 #define TRACK_X         (CHROME_SCROLL_X + 1)      /* 3 px track, centred on the 5 px thumb body */
 #define TRACK_W         3
+#define THUMB_C0        1                          /* thumb = columns 1..4 of SCROLL_THUMB */
+#define THUMB_W         4
 #define THUMB_STRIPS    3                          /* thumb moves in this many steps */
 
 static const uint16_t SCROLL_TRACK[TRACK_W] = { 0x21B2, 0x7C7A, 0x94FB };
@@ -131,11 +195,18 @@ static bool    s_thumb_down = true;      /* rows are painted top to bottom (else
 static void draw_thumb_part(uint8_t y, uint8_t h) {
     for (uint8_t i = 0; i < h; i++) {
         uint8_t r = s_thumb_down ? i : (uint8_t)(h - 1 - i);
-        uint8_t cut = corner_cut((uint8_t)(y + r - s_thumb_y), s_thumb_h);
-        st7735_stream_begin(CHROME_SCROLL_X, (uint8_t)(y + r), (uint8_t)(SCROLL_W - cut), 1);
-        for (uint8_t c = 0; c < SCROLL_W - cut; c++) st7735_stream_pixels(SCROLL_THUMB[c], 1);
+        uint8_t rel = (uint8_t)(y + r - s_thumb_y);
+        uint8_t cut = (rel == 0 || rel == s_thumb_h - 1) ? 1 : 0;   /* 1 px rounded corners */
+        uint8_t row = (uint8_t)(y + r);
+        st7735_stream_begin((uint8_t)(CHROME_SCROLL_X + THUMB_C0 + cut), row, (uint8_t)(THUMB_W - 2 * cut), 1);
+        for (uint8_t c = (uint8_t)(THUMB_C0 + cut); c < THUMB_C0 + THUMB_W - cut; c++)
+            st7735_stream_pixels(SCROLL_THUMB[c], 1);
         st7735_stream_end();
-        if (cut) chrome_restore((uint8_t)(CHROME_SCROLL_X + SCROLL_W - cut), cut, (uint8_t)(y + r), 1);
+        if (cut) {   /* corner pixels show the track (left, over it) and the background (right) */
+            chrome_restore((uint8_t)(CHROME_SCROLL_X + THUMB_C0), 1, row, 1);
+            st7735_fill_rect((uint8_t)(CHROME_SCROLL_X + THUMB_C0), row, 1, 1, SCROLL_TRACK[0]);
+            chrome_restore((uint8_t)(CHROME_SCROLL_X + THUMB_C0 + THUMB_W - 1), 1, row, 1);
+        }
     }
 }
 
@@ -147,11 +218,20 @@ static void clear_thumb_part(uint8_t y, uint8_t h) {
 }
 
 void chrome_scrollbar_draw(uint8_t count, uint8_t selected) {
+    if (s_bar_on) { chrome_scrollbar_move(count, selected); return; }
     for (uint8_t c = 0; c < TRACK_W; c++)
         st7735_fill_rect((uint8_t)(TRACK_X + c), CHROME_LIST_Y, 1, SCROLL_H, SCROLL_TRACK[c]);
     s_thumb_y = thumb_top(count, selected); s_thumb_h = thumb_h(count); s_thumb_down = true;
     draw_thumb_part(s_thumb_y, s_thumb_h);
     s_thumb = selected;
+    s_bar_count = count;
+    s_bar_on = true;
+}
+
+void chrome_scrollbar_hide(void) {
+    if (!s_bar_on) return;
+    chrome_restore(CHROME_SCROLL_X, SCROLL_W, CHROME_LIST_Y, SCROLL_H);
+    s_bar_on = false;
 }
 
 /* Run f over rows [y, y+h) in THUMB_STRIPS pieces, top to bottom or bottom to top. */
@@ -165,24 +245,30 @@ static void for_strips(uint8_t y, uint8_t h, bool top_first, void (*f)(uint8_t, 
     }
 }
 
-/* Move the thumb without ever leaving the bar empty: the SPI link is slow enough to see
- * the order of the pixel updates.  First paint the new thumb starting at the edge that
- * touches the old one (the bar visibly grows towards the new position), then clear the
- * old thumb starting at the edge farthest from the new one (it shrinks away from it). */
+/* Move the thumb (of a list of `count` rows, possibly not the one it was drawn for) without
+ * ever leaving the bar empty: the SPI link is slow enough to see the order of the pixel
+ * updates.  First paint the new thumb starting at the edge that touches the old one (the
+ * bar visibly grows towards the new position), then clear the old thumb's rows that the
+ * new one does not cover, starting at the edge farthest from the new one.  The track and
+ * the rest of the bar are never repainted. */
 void chrome_scrollbar_move(uint8_t count, uint8_t to) {
-    uint8_t from = s_thumb;
-    if (from == to) return;
-    uint8_t oy = thumb_top(count, from), ny = thumb_top(count, to);
-    bool down = ny > oy;
-    uint8_t th = thumb_h(count);
+    if (!s_bar_on) { chrome_scrollbar_draw(count, to); return; }
+    if (s_bar_count == count && s_thumb == to) return;
+    uint8_t oy = thumb_top(s_bar_count, s_thumb), oe = (uint8_t)(oy + thumb_h(s_bar_count));
+    uint8_t ny = thumb_top(count, to), th = thumb_h(count), ne = (uint8_t)(ny + th);
+    bool down = ny > oy || (ny == oy && ne > oe);
 
     s_thumb_y = ny; s_thumb_h = th; s_thumb_down = down;
     for_strips(ny, th, down, draw_thumb_part);
 
-    /* old rows not covered by the new thumb (the steps are >= one thumb, so all of them) */
-    uint8_t a = oy, e = (uint8_t)(oy + th);
-    if (down  && ny < e) e = ny;
-    if (!down && ny + th > a) a = (uint8_t)(ny + th);
-    if (a < e) for_strips(a, (uint8_t)(e - a), down, clear_thumb_part);
+    if (oy < ny) {                                    /* old rows above the new thumb */
+        uint8_t e = oe < ny ? oe : ny;
+        for_strips(oy, (uint8_t)(e - oy), down, clear_thumb_part);
+    }
+    if (ne < oe) {                                    /* old rows below it */
+        uint8_t a = oy > ne ? oy : ne;
+        for_strips(a, (uint8_t)(oe - a), down, clear_thumb_part);
+    }
     s_thumb = to;
+    s_bar_count = count;
 }

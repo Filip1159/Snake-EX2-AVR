@@ -97,8 +97,9 @@ static void enter_menu(void) {
     s_screen = SCREEN_MENU;
 }
 
+/* Back from settings / credits: only what differs from the screen we leave is repainted. */
 static void show_menu(void) {
-    menu_draw();
+    menu_show();
     s_screen = SCREEN_MENU;
 }
 
@@ -115,7 +116,7 @@ static void menu_navigate(int8_t delta) {
 }
 
 static void enter_info(void) {
-    credits_draw();
+    credits_show();
     s_screen = SCREEN_INFO;
 }
 
@@ -123,7 +124,7 @@ static void enter_info(void) {
 static void enter_highscores_menu(uint8_t selected) {
     menu_open(MENU_LIST_SCORES);
     menu_move((int8_t)selected);
-    menu_draw();
+    menu_show();
     s_screen = SCREEN_HIGHSCORES_MENU;
 }
 
@@ -137,13 +138,13 @@ static void leave_highscores_menu(void) {
     menu_set_continue(savegame_exists());
     menu_init();
     menu_move((int8_t)menu_index_of(MENU_ITEM_HIGH_SCORES));
-    menu_draw();
+    menu_show();
     s_screen = SCREEN_MENU;
 }
 
 static void enter_settings(void) {
     settings_init();
-    settings_draw();
+    settings_show();
     s_screen = SCREEN_SETTINGS;
 }
 

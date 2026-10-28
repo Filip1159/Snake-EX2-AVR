@@ -178,15 +178,14 @@ int main() {
     CHECK(non_wall(95, 104, 24, 1) == 0);
 
     /* Scrollbar: a 3 px track (x=123..125) from the list top (y=30) to 5 px above "Exit"
-     * (y=140), centred under the 6 px thumb (x=122..127: 5 px body + shadow). The thumb is
-     * brighter than the track, 1/4 of its height (27 px), with a brown edge and a navy
-     * shadow on its right, and sits at the top for the first item. Its right corners are
-     * rounded by 2 px like the selection band. */
-    CHECK(fb[30][122] == 0xFFFF && fb[56][122] == 0xFFFF);          /* thumb, left (bright) edge */
-    CHECK(fb[40][126] == 0x9225 && fb[40][127] == 0x118F);          /* thumb edge + shadow on the right */
-    CHECK(fb[30][126] == wall[30][126] && fb[30][127] == wall[30][127]);
-    CHECK(fb[31][127] == wall[31][127] && fb[31][126] == 0x9225);
-    CHECK(fb[56][127] == wall[56][127] && fb[55][127] == wall[55][127] && fb[55][126] == 0x9225);
+     * (y=140) under a 4 px thumb (x=123..126), brighter than the track, 1/4 of its height
+     * (27 px), with a brown right edge; it sits at the top for the first item. All four
+     * corners are rounded by 1 px. */
+    CHECK(fb[31][123] == 0xFF5A && fb[55][123] == 0xFF5A);          /* thumb, left edge */
+    CHECK(fb[40][126] == 0x9225 && fb[40][127] == wall[40][127]);   /* right edge, no shadow */
+    CHECK(fb[40][122] == wall[40][122]);
+    CHECK(fb[30][123] == 0x21B2 && fb[30][126] == wall[30][126] && fb[30][124] == 0xF6B7);   /* top corners */
+    CHECK(fb[56][123] == 0x21B2 && fb[56][126] == wall[56][126] && fb[56][125] == 0xDD0F);   /* bottom corners */
     CHECK(fb[57][123] == 0x21B2 && fb[140][123] == 0x21B2);         /* track below it, dark left edge */
     CHECK(fb[100][124] == 0x7C7A && fb[100][125] == 0x94FB);
     CHECK(fb[100][122] == wall[100][122] && fb[100][126] == wall[100][126]);   /* only 3 px wide */
@@ -205,9 +204,9 @@ int main() {
             menu_move((int8_t)item);
             menu_draw();
             int bright = 0;
-            for (int y = 30; y < 141; y++) if (fb[y][122] == 0xFFFF) bright++;
+            for (int y = 30; y < 141; y++) if (fb[y][124] == 0xF6B7) bright++;
             CHECK(bright == 27);
-            CHECK(fb[30 + item * 28][122] == 0xFFFF);
+            CHECK(fb[30 + item * 28][124] == 0xF6B7);
         }
     }
     {   /* moving the thumb: the new thumb is painted first, starting at the edge that touches
@@ -227,15 +226,15 @@ int main() {
             int nt = top[to], ot = top[from];
             int max_new = 0, min_old = 1 << 30;
             for (int y = nt; y < nt + 27; y++) {
-                CHECK(fb[y][122] == 0xFFFF);
-                if (stamp[y][122] > max_new) max_new = stamp[y][122];
+                CHECK(fb[y][124] == 0xF6B7);
+                if (stamp[y][124] > max_new) max_new = stamp[y][124];
                 /* new thumb: from the old one outwards */
                 int next = down ? y + 1 : y - 1;
                 if (next >= nt && next < nt + 27)
-                    CHECK(stamp[next][122] >= stamp[y][122]);
+                    CHECK(stamp[next][124] >= stamp[y][124]);
             }
             for (int y = ot; y < ot + 27; y++) {
-                CHECK(fb[y][122] == wall[y][122]);
+                CHECK(fb[y][124] == 0x7C7A);
                 if (stamp[y][122] < min_old) min_old = stamp[y][122];
                 /* old thumb: cleared from the far edge towards the new thumb */
                 int next = down ? y + 1 : y - 1;
@@ -243,7 +242,7 @@ int main() {
                     CHECK(stamp[next][122] >= stamp[y][122]);
             }
             CHECK(max_new < min_old);                 /* clearing starts after the new thumb is complete */
-            CHECK(fb[ot][123] == 0x21B2 && fb[ot + 26][123] == 0x21B2);   /* old rows show the track again */
+            CHECK(fb[ot][124] == 0x7C7A && fb[ot + 26][124] == 0x7C7A);   /* old rows show the track again */
         }
         menu_init();
         menu_draw();
@@ -304,14 +303,14 @@ int main() {
     CHECK(count_color(100, 148, 24, 7, 0x0010) > 10);             /* "Back", not "Exit" */
     {
         int bright = 0;
-        for (int y = 30; y < 141; y++) if (fb[y][122] == 0xFFFF) bright++;
+        for (int y = 30; y < 141; y++) if (fb[y][124] == 0xF6B7) bright++;
         CHECK(bright == 55);
     }
     menu_move(1);
     menu_draw_item(MENU_ITEM_NEW_GAME);
     menu_draw_item(MENU_ITEM_HIGH_SCORES);
     CHECK(menu_selected_index() == 1 && fb[50][0] == 0x03DB && fb[30][0] == wall[30][0]);
-    CHECK(fb[86][122] == 0xFFFF && fb[140][122] == 0xFFFF && fb[85][123] == 0x21B2 && fb[30][122] == wall[30][122]);
+    CHECK(fb[86][124] == 0xF6B7 && fb[140][124] == 0xF6B7 && fb[85][124] == 0x7C7A && fb[30][122] == wall[30][122]);
     menu_move(1);                                                  /* wraps to Classic */
     CHECK(menu_selected_index() == 0);
     menu_init();                                                   /* back to the main list */

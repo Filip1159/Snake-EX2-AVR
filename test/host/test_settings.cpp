@@ -101,7 +101,7 @@ int main() {
     CHECK(count_color(4, 34, 40, 12, 0xFFFF) > 20);            /* selected label is white */
     CHECK(count_color(50, 144, 28, 12, 0x0010) > 20);          /* "Save", centred */
     CHECK(count_color(100, 148, 24, 7, 0x0010) > 10);          /* "Back" bottom-right */
-    CHECK(fb[100][124] == 0x7C7A && fb[35][122] == 0xFFFF);    /* scrollbar track + thumb */
+    CHECK(fb[100][124] == 0x7C7A && fb[35][123] == 0xFF5A);    /* scrollbar track + thumb */
     CHECK(count_color(60, 34, 56, 12, 0xFFFF) > 20);           /* value text */
 
     /* Adjusting a value repaints only that row (settings_draw_value). */

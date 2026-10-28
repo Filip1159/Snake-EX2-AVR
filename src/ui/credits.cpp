@@ -19,10 +19,13 @@ static const char *const LINK[]   = { "https://github.com/", "Filip1159/", "Snak
 
 #define COUNT(a) ((uint8_t)(sizeof(a) / sizeof((a)[0])))
 
-static uint8_t draw_lines(const char *const *lines, uint8_t n, uint8_t y) {
+/* Draw the lines, or (erase) put the wallpaper back behind each one. */
+static uint8_t draw_lines(const char *const *lines, uint8_t n, uint8_t y, bool erase) {
     for (uint8_t i = 0; i < n; i++) {
         uint8_t w = text_width(lines[i], 1);
-        text_draw((uint8_t)((CHROME_W - w) / 2), y, lines[i], 1, CHROME_INK);
+        uint8_t x = (uint8_t)((CHROME_W - w) / 2);
+        if (erase) chrome_restore(x, (uint8_t)(w + 1), y, CHROME_TEXT_H);
+        else       text_draw(x, y, lines[i], 1, CHROME_INK);
         y = (uint8_t)(y + CREDITS_LINE_H);
     }
     return y;
@@ -51,20 +54,31 @@ static void draw_stack_debug(uint8_t y) {
 }
 #endif
 
-void credits_draw(void) {
-    chrome_use_wallpaper();
-    chrome_draw_wallpaper();
-    chrome_draw_status_bar();
-    chrome_draw_title("Snake EX2", 0);
-
+static uint8_t text_top(void) {
     uint8_t lines = (uint8_t)(COUNT(AUTHOR) + COUNT(LINK));
     uint8_t h = (uint8_t)((lines - 1) * CREDITS_LINE_H + CREDITS_INK_H + CREDITS_GAP);
-    uint8_t y = (uint8_t)((SCREEN_H - h) / 2);
-    y = draw_lines(AUTHOR, COUNT(AUTHOR), y);
-    draw_lines(LINK, COUNT(LINK), (uint8_t)(y + CREDITS_GAP));
+    return (uint8_t)((SCREEN_H - h) / 2);
+}
 
-    chrome_draw_softkey_right("Back");
+static void lines_pass(bool erase) {
+    uint8_t y = draw_lines(AUTHOR, COUNT(AUTHOR), text_top(), erase);
+    draw_lines(LINK, COUNT(LINK), (uint8_t)(y + CREDITS_GAP), erase);
+}
+
+static void erase_content(void) { lines_pass(true); }
+
+void credits_show(void) {
+    chrome_begin(erase_content);       /* wallpaper + status bar only if not already there */
+    chrome_draw_title("Snake EX2", 0);
+    chrome_scrollbar_hide();
+    lines_pass(false);
+    chrome_draw_softkeys(0, "Back");
 #if STACK_MEASURE
     draw_stack_debug(130);
 #endif
+}
+
+void credits_draw(void) {
+    chrome_invalidate();
+    credits_show();
 }

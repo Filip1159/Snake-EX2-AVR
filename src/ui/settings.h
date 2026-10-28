@@ -41,6 +41,9 @@ void settings_save(void);
 /** Repaint the complete 128×160 settings screen. */
 void settings_draw(void);
 
+/** Same screen coming from another wallpaper screen: repaints only what differs. */
+void settings_show(void);
+
 /** Repaint one row (selection moved: the row that lost / gained the highlight), the
  *  title-row index and the scrollbar thumb. */
 void settings_draw_row(setting_item_t item);
