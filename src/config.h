@@ -191,11 +191,6 @@
 /** Maze cycle in Extreme mode: -1,0,1,2,3,4. b.java, BACKLOG.MD §1.1. */
 #define EXTREME_MAZE_COUNT 6
 
-/** Snake.J is the instructions/tutorial sequence (U5), not campaign progress:
- *  62 entries = 55 text pages + seven demo games (-1..-7); -8 is the high-score demo. */
-#define TUTORIAL_SCRIPT_COUNT 62
-#define TUTORIAL_DEMO_COUNT   8
-
 /** Portal shrink: one segment per tick until length <= 2, then reset. */
 #define PORTAL_SHRINK_MIN_LENGTH 2
 

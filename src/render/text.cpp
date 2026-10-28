@@ -4,7 +4,7 @@
  * Glyph layout: 7 bytes per glyph, 5 significant bits per byte.
  * Bit 4 (0x10) = leftmost pixel, bit 0 (0x01) = rightmost pixel.
  * Order: A–Z (0–25), 0–9 (26–35), space (36), '-' (37), '.' (38), ':'
- * (39), a–z (40–65). Lowercase uses rows 2–6 for the x-height; ascenders
+ * (39), a–z (40–65), '/' (66). Lowercase uses rows 2–6 for the x-height; ascenders
  * start at row 0.
  */
 #include "render/text.h"
@@ -79,6 +79,7 @@ static const uint8_t FONT5x7[][7] PROGMEM = {
     /* x */ {0x00,0x00,0x11,0x0A,0x04,0x0A,0x11},
     /* y */ {0x00,0x00,0x11,0x11,0x0F,0x01,0x0E},
     /* z */ {0x00,0x00,0x1F,0x02,0x04,0x08,0x1F},
+    /* / */ {0x01,0x01,0x02,0x04,0x08,0x10,0x10},
 };
 
 static const uint8_t *font_glyph(char c) {
@@ -89,6 +90,7 @@ static const uint8_t *font_glyph(char c) {
     if (c == '-') return FONT5x7[37];
     if (c == '.') return FONT5x7[38];
     if (c == ':') return FONT5x7[39];
+    if (c == '/') return FONT5x7[66];
     return FONT5x7[36];   // unknown → space
 }
 

@@ -32,15 +32,13 @@
 #include "ui/settings.h"
 #include "ui/highscores.h"
 #include "ui/pause.h"
-#include "ui/instructions.h"
+#include "ui/credits.h"
 #include "screens.h"
 #include "gamestate.h"
 #include "game/game.h"
 #include "game/classic.h"
 #include "game/rng.h"
 
-#define C_WHITE   0xFFFF
-#define C_BLACK   0x0000
 #define C_YELLOW  0xFFE0
 
 #define FRAME_MS  66        /* 15 fps game tick */
@@ -51,7 +49,7 @@ static uint32_t          s_title_deadline;
 static bool              s_title_timed;
 
 static uint8_t           s_map[MAZE_CELLS];
-/* Game state (also accessed from instructions.cpp via gamestate.h) */
+/* Game state */
 game_t            s_game;
 playfield_cache_t s_cache;
 bool              s_paused;
@@ -63,11 +61,6 @@ int16_t           s_hud_bonus;
 uint8_t           s_hud_pu;
 
 /* ── Small helpers ──────────────────────────────────────────────────────── */
-
-static uint8_t centered_x(const char *txt, uint8_t scale) {
-    uint8_t w = text_width(txt, scale);
-    return (w >= 128) ? 0 : (uint8_t)((128 - w) / 2);
-}
 
 static void play_sfx(uint8_t id) {
     if (eeprom_get_settings()->sound_on) buzzer_play(id);
@@ -112,27 +105,8 @@ static void menu_navigate(int8_t delta) {
     menu_draw_item(current);
 }
 
-static void draw_info_screen(menu_item_t item) {
-    const char *label = menu_item_label(item);
-    const char *body  = "COMING SOON";
-    const char *back  = "PAUSE BACK";
-
-    st7735_fill_screen(C_WHITE);
-
-    st7735_fill_rect(0, 0, 128, 20, C_BLACK);
-    text_draw(centered_x(label, 1), 7, label, 1, C_WHITE);
-
-    text_draw(centered_x(body, 1), 72, body, 1, C_BLACK);
-
-    st7735_fill_rect(0, 140, 128, 20, C_BLACK);
-    {
-        uint8_t w = text_width(back, 1);
-        text_draw((uint8_t)(128 - w - 5), 146, back, 1, C_WHITE);
-    }
-}
-
-static void enter_info(menu_item_t item) {
-    draw_info_screen(item);
+static void enter_info(void) {
+    credits_draw();
     s_screen = SCREEN_INFO;
 }
 
@@ -161,11 +135,6 @@ static void enter_settings(void) {
     settings_init();
     settings_draw();
     s_screen = SCREEN_SETTINGS;
-}
-
-static void enter_instructions(void) {
-    instructions_show();
-    s_screen = SCREEN_INSTRUCTIONS;
 }
 
 /* ── Game ───────────────────────────────────────────────────────────────── */
@@ -270,8 +239,7 @@ void loop() {
                     else if (item == MENU_ITEM_SETTINGS) enter_settings();
                     else if (item == MENU_ITEM_HIGH_SCORES) enter_highscores_menu(
                         eeprom_get_settings()->mode == MODE_EXTREME ? HS_MODE_EXTREME : HS_MODE_CLASSIC);
-                    else if (item == MENU_ITEM_INSTRUCTIONS) enter_instructions();
-                    else enter_info(item);
+                    else if (item == MENU_ITEM_INSTRUCTIONS) enter_info();
                 } else if (ev == BTN_EVENT_PRESS && btn == BTN_PAUSE) {
                     enter_title();
                 }
@@ -320,14 +288,6 @@ void loop() {
         case SCREEN_HIGHSCORES:
             if (ev == BTN_EVENT_PRESS && (btn == BTN_FIRE || btn == BTN_PAUSE)) {
                 enter_highscores_menu(menu_selected_index());   /* back to the Classic/Extreme list */
-            }
-            break;
-
-        case SCREEN_INSTRUCTIONS:
-            if (ev == BTN_EVENT_PRESS || ev == BTN_EVENT_REPEAT) {
-                if (!instructions_handle_input(ev, btn)) {
-                    show_menu();
-                }
             }
             break;
 

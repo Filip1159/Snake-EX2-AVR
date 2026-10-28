@@ -77,7 +77,7 @@ sequences non-blocking; the settings menu can mute sound.
 | `src/render/` | Dirty-cell playfield renderer, sprites, HUD, high scores, menus |
 | `src/drivers/` | ST7735, buttons, buzzer, EEPROM |
 | `src/assets/` | Generated maze/sprite/image/sound tables (do not hand-edit `*_gen.*`) |
-| `src/ui/` | Title, menu, settings, pause, instructions, high scores |
+| `src/ui/` | Title, menu, settings, pause, credits, high scores |
 | `tools/` | Asset extractor/converter/generator, golden and visual tests |
 | `test/host/` | Native test programs and stub HAL/Arduino layer |
 | `reference/` | Frozen original `d` resource, decompiled classes, screenshots |

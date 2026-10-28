@@ -250,32 +250,12 @@ Pause and game over (U4):
 - `test/host/test_pause.cpp` verifies the overlay uses a grid pattern (no
   `fill_screen()` call).
 
-Instructions/tutorial (U5):
-- `src/ui/instructions.{h,cpp}` provides the tutorial screen with 12 text pages
-  (from original lang.xx IDs 0, 1, 6, 11, 16, 21, 26, 51–55) plus a demo menu
-  with 8 scripted demos matching the original Snake.J sequence (`-1..-8`).
-  - Navigation: Up/Down for pages, Left/Right to enter demo menu, Fire to run
-    demo, Pause/Fire to exit back to main menu.
-  - Text rendering: word-wrapped 5×7 font from PROGMEM using `text_draw_p`/
-    `text_width_p`. Page indicator shows current/total.
-  - Demo games (scripted auto-play):
-    - -1 Tongue: Classic/Box/speed 1, food placed 2 cells ahead, FIRE extends tongue
-    - -2 Walls: Classic/Box/speed 2, auto-move into wall to show collision
-    - -3 Bonus Food: Extreme/Box/speed 2, forces bonus food spawn with countdown
-    - -4 Speed Up: Extreme/Box/speed 3, forces speed power-up effect
-    - -5 Ghost: Extreme/Box/speed 2, forces wall-ghost power-up
-    - -6 Coin Rush: Extreme/Box/speed 2, forces coin rush with coins spawned
-    - -7 Lights Out: Extreme/Box/speed 2, forces lights-out effect
-    - -8 High Score: Classic/No maze/speed 5, auto-plays to get score, saves its score
-  - Each demo initializes the game, sets the relevant state, runs for several
-    seconds, and returns to the demo menu.
-  - Input ownership: `main.cpp` owns the button event queue and passes the
-    already-dequeued event to `instructions_handle_input(ev, btn)`. The handler
-    must not call `buttons_get_event()` itself; doing so discarded the first
-    event and left the tutorial stuck on the first page.
-  - `test/host/test_instructions.cpp` verifies page/demo-menu navigation,
-    press/repeat/release handling, the Fire/Pause exit path, and that the handler
-    never drains the button queue.
+Credits (replaces the original tutorial):
+- The main menu's "Instructions" item opens `src/ui/credits.{h,cpp}`: the menu wallpaper, status
+  bar and title row, the author and repository link centred on the screen (small font, link
+  wrapped at the slashes) and a "Back" soft key. Fire or Pause returns to the main menu.
+  The tutorial pages and scripted demos were removed.
+  `test/host/test_credits.cpp` checks the chrome and the centring.
 
 ## Reproduction (fresh checkout)
 
