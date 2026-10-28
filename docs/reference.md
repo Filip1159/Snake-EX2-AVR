@@ -213,8 +213,9 @@ Settings (U2):
 - `src/ui/settings.{h,cpp}` draws a full 128×160 editor with four rows: Mode (Classic/
   Extreme), Maze (No maze / Box / Tunnel / Spiral / Blockade / Twisted), Speed (0–5),
   Sound (ON/OFF). Up/Down selects the row; Left/Right changes the value (toggles or
-  cycles with clamping). Fire saves atomically to EEPROM via `eeprom_save_settings()`
-  and flashes a centred "SAVED" box for 500 ms. Pause returns to the main menu.
+  cycles with clamping). Edits stay on screen only. The centred "Save" soft key (Fire) writes all
+  of them to EEPROM via `eeprom_save_settings()` and returns to the main menu; "Back" (Pause)
+  returns without saving. The screen shares the main menu's chrome (wallpaper, status bar, band).
   The maze list uses PROGMEM strings from `maze_name()`; a new `text_draw_p`/
   `text_width_p` pair in `render/text` reads them correctly without copying to RAM.
 - `test/host/test_settings.cpp` verifies selection wrapping, value adjustments, clamps,

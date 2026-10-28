@@ -289,15 +289,16 @@ void loop() {
                 if (btn == BTN_UP || btn == BTN_DOWN) {
                     setting_item_t prev = settings_selected();
                     settings_move(btn == BTN_UP ? -1 : 1);
-                    settings_draw_value(prev);
-                    settings_draw_value(settings_selected());
+                    settings_draw_row(prev);
+                    settings_draw_row(settings_selected());
                 } else if (btn == BTN_LEFT || btn == BTN_RIGHT) {
                     settings_adjust(btn == BTN_LEFT ? -1 : 1);
                     settings_draw_value(settings_selected());
                 } else if (ev == BTN_EVENT_PRESS && btn == BTN_FIRE) {
-                    settings_save();
-                } else if (ev == BTN_EVENT_PRESS && btn == BTN_PAUSE) {
+                    settings_save();      /* "Save": store everything, back to the menu */
                     show_menu();
+                } else if (ev == BTN_EVENT_PRESS && btn == BTN_PAUSE) {
+                    show_menu();          /* "Back": discard the edits */
                 }
             }
             break;

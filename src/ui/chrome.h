@@ -18,6 +18,11 @@ extern "C" {
 #define CHROME_INK        0x0000
 #define CHROME_SOFT_INK   0x0010
 #define CHROME_DOT        0x8410
+#define CHROME_ROW_H      20
+#define CHROME_LIST_Y     30          /* top of the first list row and of the scrollbar */
+#define CHROME_SCROLL_X   121
+#define CHROME_BAND_W     120
+#define CHROME_HL_INK     0xFFFF
 
 /** Background used by the chrome: the S40 wallpaper (default; menus) or a flat colour
  *  (e.g. the game board colour for the high-score view). Set before drawing a screen. */
@@ -39,6 +44,21 @@ void chrome_draw_status_bar(void);
 /** Title row: `title` at the left, a dotted leader, and optional `right` text right-aligned
  *  at x=126 (the menu's item index, the high-score mode). Repaints the row's wallpaper. */
 void chrome_draw_title(const char *title, const char *right);
+
+/** Selection band (blue-to-navy gradient, CHROME_BAND_W x CHROME_ROW_H) with its top at y. */
+void chrome_draw_band(uint8_t y);
+
+/** Same band, only columns [x, x+w) (to repaint part of a selected row). */
+void chrome_draw_band_part(uint8_t y, uint8_t x, uint8_t w);
+
+/** Scrollbar for a list of `count` rows: draw it whole (track + thumb at `selected`), or
+ *  animate the thumb from where it is to `to`. */
+void chrome_scrollbar_draw(uint8_t count, uint8_t selected);
+void chrome_scrollbar_move(uint8_t count, uint8_t to);
+
+/** Soft keys: `left` bold and centred (the main action), `right` bottom-right, a dotted
+ *  leader between them. */
+void chrome_draw_softkeys(const char *left, const char *right);
 
 /** Right soft key label in the bottom-right corner. Returns its left x. */
 uint8_t chrome_draw_softkey_right(const char *label);
