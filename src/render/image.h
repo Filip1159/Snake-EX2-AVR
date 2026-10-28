@@ -14,6 +14,9 @@ extern "C" {
 /** Draw an image stored in flash (pointer to a PROGMEM img_t) with its top-left at (x,y). */
 void img_draw(uint8_t x, uint8_t y, const img_t *img_P);
 
+/** Draw only image rows [row0, row0+rows) with their top-left at (x,y). */
+void img_draw_rows(uint8_t x, uint8_t y, const img_t *img_P, uint8_t row0, uint8_t rows);
+
 #ifdef __cplusplus
 }
 #endif

@@ -4,11 +4,13 @@
  * The original MIDlet uses the phone's native List UI rather than drawing a
  * menu on the game canvas.  This renderer reconstructs the 128×160 S40 list:
  * a small status bar, the list title, four full-width rows with dotted
- * leaders, and Select/Exit soft keys.  The selected row is a light-blue band
- * with dark text, matching the reference screenshot.
+ * leaders, and Select/Exit soft keys over the reconstructed S40 wallpaper
+ * (IMG_WALLPAPER).  The selected row is a light-blue band with dark text.
  */
 #include "ui/menu.h"
 #include "render/text.h"
+#include "render/image.h"
+#include "assets/wallpaper.h"
 #include "drivers/st7735.h"
 
 #define MENU_W          128
@@ -21,13 +23,11 @@
 #define MENU_FOOTER_Y   140
 #define MENU_FOOTER_H   20
 
-#define MENU_BG         0xFFFF
 #define MENU_INK        0x0000
 #define MENU_SOFT_INK   0x0010
 #define MENU_DOT        0x8410
 #define MENU_HL_BG      0x6CFD
 #define MENU_HL_INK     0x0000
-#define MENU_RULE       0x6CFD
 #define MENU_STATUS_INK 0x0010
 #define MENU_BATT_FILL  0x07E0
 
@@ -46,6 +46,11 @@ static const char *const MENU_LABELS[MENU_ITEM_COUNT] = {
 
 static uint8_t s_selected;
 
+/* Restore wallpaper rows [y, y+h) across the full width. */
+static void draw_wallpaper(uint8_t y, uint8_t h) {
+    img_draw_rows(0, y, &IMG_WALLPAPER, y, h);
+}
+
 static void dotted_leader(uint8_t x0, uint8_t x1, uint8_t y, uint16_t color) {
     if (x0 >= x1) return;
     for (uint8_t x = x0; x < x1; x = (uint8_t)(x + 4)) {
@@ -54,8 +59,6 @@ static void dotted_leader(uint8_t x0, uint8_t x1, uint8_t y, uint16_t color) {
 }
 
 static void draw_status_bar(void) {
-    st7735_fill_rect(0, 0, MENU_W, MENU_STATUS_H, MENU_BG);
-
     /* Signal-strength bars at the left. */
     for (uint8_t i = 0; i < 4; i++) {
         uint8_t h = (uint8_t)(2 + i * 2);
@@ -66,7 +69,7 @@ static void draw_status_bar(void) {
 
     /* Battery outline, fill and terminal nub. */
     st7735_fill_rect(42, 3, 11, 7, MENU_STATUS_INK);
-    st7735_fill_rect(43, 4, 9, 5, MENU_BG);
+    st7735_fill_rect(43, 4, 9, 5, 0xFFFF);
     st7735_fill_rect(44, 5, 6, 3, MENU_BATT_FILL);
     st7735_fill_rect(53, 5, 2, 3, MENU_STATUS_INK);
     dotted_leader(57, 94, 7, MENU_DOT);
@@ -79,7 +82,6 @@ static void draw_status_bar(void) {
 }
 
 static void draw_title_bar(void) {
-    st7735_fill_rect(0, MENU_TITLE_Y, MENU_W, MENU_TITLE_H, MENU_BG);
     text_draw(4, 18, MENU_TITLE_TEXT, 1, MENU_INK);
 
     {
@@ -92,11 +94,11 @@ static void draw_title_bar(void) {
 static void draw_row(uint8_t index) {
     uint8_t y = (uint8_t)(MENU_FIRST_Y + index * MENU_ROW_H);
     bool selected = (index == s_selected);
-    uint16_t bg = selected ? MENU_HL_BG : MENU_BG;
     uint16_t ink = selected ? MENU_HL_INK : MENU_INK;
     const char *label = MENU_LABELS[index];
 
-    st7735_fill_rect(0, y, MENU_W, MENU_ROW_H, bg);
+    if (selected) st7735_fill_rect(0, y, MENU_W, MENU_ROW_H, MENU_HL_BG);
+    else          draw_wallpaper(y, MENU_ROW_H);
     text_draw_big(4, (uint8_t)(y + 4), label, ink);
 
     if (!selected) {
@@ -106,9 +108,6 @@ static void draw_row(uint8_t index) {
 }
 
 static void draw_softkeys(void) {
-    st7735_fill_rect(0, MENU_FOOTER_Y, MENU_W, MENU_FOOTER_H, MENU_BG);
-    st7735_fill_rect(0, MENU_FOOTER_Y, MENU_W, 1, MENU_RULE);
-
     /* "Select" is the main action: bold and centred. */
     uint8_t lw = text_width_big(MENU_SOFT_LEFT);
     uint8_t lx = (uint8_t)((MENU_W - lw) / 2);
@@ -147,7 +146,7 @@ void menu_draw_item(menu_item_t item) {
 }
 
 void menu_draw(void) {
-    st7735_fill_screen(MENU_BG);
+    img_draw(0, 0, &IMG_WALLPAPER);
 
     draw_status_bar();
     draw_title_bar();

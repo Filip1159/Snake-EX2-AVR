@@ -28,6 +28,13 @@ void st7735_fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t c) {
         for (int i = 0; i < w; i++)
             if (x + i < 128 && y + j < 160) fb[y + j][x + i] = c;
 }
+static int s_cx, s_cy, s_cw, s_px;
+void st7735_stream_begin(uint8_t x, uint8_t y, uint8_t w, uint8_t h) { (void)h; s_cx = x; s_cy = y; s_cw = w; s_px = 0; }
+void st7735_stream_pixels(uint16_t c, uint8_t n) {
+    while (n--) { fb[s_cy + s_px / s_cw][s_cx + s_px % s_cw] = c; s_px++; }
+}
+void st7735_stream_end(void) {}
+
 void st7735_backlight(bool on) { (void)on; }
 }
 

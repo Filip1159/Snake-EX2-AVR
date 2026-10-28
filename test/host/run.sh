@@ -19,10 +19,10 @@ g++ $F test/host/test_stack_measure.cpp src/drivers/stack_measure.cpp -o $OUT/t_
 python3 tools/test_visual.py
 g++ $F test/host/test_maze_field.cpp src/assets/maze.cpp src/assets/assets_gen.cpp src/render/field.cpp -o $OUT/t_maze && $OUT/t_maze
 g++ $F test/host/test_hud.cpp src/render/hud.cpp src/render/image.cpp src/render/sprite.cpp src/assets/trophy.cpp src/render/text.cpp src/assets/assets_gen.cpp -o $OUT/t_hud && $OUT/t_hud
-g++ $F test/host/test_menu.cpp src/ui/menu.cpp src/render/text.cpp -o $OUT/t_menu && $OUT/t_menu
+g++ $F test/host/test_menu.cpp src/ui/menu.cpp src/assets/wallpaper.cpp src/render/image.cpp src/render/text.cpp src/assets/assets_gen.cpp -o $OUT/t_menu && $OUT/t_menu
 g++ $F test/host/test_instructions.cpp src/ui/instructions.cpp -o $OUT/t_instructions && $OUT/t_instructions
-g++ $F test/host/test_settings.cpp src/ui/settings.cpp src/ui/menu.cpp src/render/text.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_settings && $OUT/t_settings
-g++ $F test/host/test_highscores.cpp src/ui/highscores.cpp src/ui/menu.cpp src/render/text.cpp src/render/hud.cpp src/render/sprite.cpp src/assets/trophy.cpp src/render/image.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_highscores && $OUT/t_highscores
+g++ $F test/host/test_settings.cpp src/ui/settings.cpp src/ui/menu.cpp src/assets/wallpaper.cpp src/render/image.cpp src/render/text.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_settings && $OUT/t_settings
+g++ $F test/host/test_highscores.cpp src/ui/highscores.cpp src/ui/menu.cpp src/assets/wallpaper.cpp src/render/text.cpp src/render/hud.cpp src/render/sprite.cpp src/assets/trophy.cpp src/render/image.cpp src/drivers/eeprom_store.cpp src/assets/maze.cpp src/assets/assets_gen.cpp -o $OUT/t_highscores && $OUT/t_highscores
 g++ $F test/host/test_pause.cpp src/ui/pause.cpp src/render/text.cpp src/drivers/stack_measure.cpp -o $OUT/t_pause && $OUT/t_pause
 g++ $F -I test/host test/host/test_snake_sprites.cpp src/render/snake_sprites.cpp src/assets/assets_gen.cpp -o $OUT/t_spr && $OUT/t_spr
 # Oracle replay needs the traces produced from the decompiled original; regenerate when absent (requires a JDK).
