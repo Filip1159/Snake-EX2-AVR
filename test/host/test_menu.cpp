@@ -103,16 +103,19 @@ int main() {
 
     CHECK(non_bg(0, 0, 128, 14, 0xFFFF) > 20);       /* signal/battery/time */
     CHECK(non_bg(0, 14, 128, 16, 0xFFFF) > 20);      /* title and leaders */
-    CHECK(non_bg(4, 30 + 7, 110, 7, 0x6CFD) > 20); /* New game */
-    CHECK(non_bg(4, 50 + 7, 110, 7, 0xFFFF) > 20);   /* High scores */
-    CHECK(non_bg(4, 70 + 7, 110, 7, 0xFFFF) > 20);   /* Settings */
-    CHECK(non_bg(4, 90 + 7, 110, 7, 0xFFFF) > 20);   /* Instructions */
+    CHECK(non_bg(4, 30 + 4, 110, 10, 0x6CFD) > 20); /* New game */
+    CHECK(non_bg(4, 50 + 4, 110, 10, 0xFFFF) > 20);   /* High scores */
+    CHECK(non_bg(4, 70 + 4, 110, 10, 0xFFFF) > 20);   /* Settings */
+    CHECK(non_bg(4, 90 + 4, 110, 10, 0xFFFF) > 20);   /* Instructions */
     CHECK(non_bg(0, 140, 128, 20, 0xFFFF) > 20);     /* soft keys + rule */
+    CHECK(non_bg(46, 144, 36, 12, 0xFFFF) > 60);     /* bold, centred "Select" */
+    CHECK(non_bg(0, 142, 40, 14, 0xFFFF) == 0);      /* nothing left of it */
+    CHECK(text_width_big("Select") == 36 && text_width_big("Instructions") == 77);
 
     /* The selected row has no dotted leader; the other rows do. */
-    CHECK(non_bg(55, 40, 69, 1, 0x6CFD) == 0);
-    CHECK(non_bg(55, 60, 69, 1, 0xFFFF) > 5);
-    CHECK(non_bg(79, 100, 45, 1, 0xFFFF) > 5);
+    CHECK(non_bg(80, 43, 44, 1, 0x6CFD) == 0);
+    CHECK(non_bg(80, 63, 44, 1, 0xFFFF) > 5);
+    CHECK(non_bg(95, 103, 29, 1, 0xFFFF) > 5);
 
     /* Incremental navigation: move from New game to High scores by repainting
      * only the two affected rows. The result must match a full redraw, and the

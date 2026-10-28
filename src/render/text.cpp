@@ -139,3 +139,50 @@ uint8_t text_width_p(const char *txt_p, uint8_t scale) {
     while (pgm_read_byte(&txt_p[n])) n++;
     return n ? (uint8_t)((n * 6 - 1) * scale) : 0;
 }
+
+
+/* ── Bold 12-row menu font (S40-style list items and soft key) ─────────────── */
+
+#include "render/bigfont.inc"
+
+#define BIG_H        12
+#define BIG_GAP      1
+#define BIG_SPACE_W  4
+
+static int8_t big_index(char c) {
+    for (uint8_t i = 0; BIG_CHARS[i]; i++)
+        if (BIG_CHARS[i] == c) return (int8_t)i;
+    return -1;                     /* space and unsupported characters */
+}
+
+uint8_t text_width_big(const char *txt) {
+    if (!txt || !*txt) return 0;
+    uint8_t w = 0;
+    for (const char *p = txt; *p; p++) {
+        int8_t i = big_index(*p);
+        w = (uint8_t)(w + (i < 0 ? BIG_SPACE_W : BIG_W[i]) + BIG_GAP);
+    }
+    return (uint8_t)(w - BIG_GAP);
+}
+
+void text_draw_big(uint8_t x, uint8_t y, const char *txt, uint16_t color) {
+    if (!txt) return;
+    uint8_t cx = x;
+    for (const char *p = txt; *p; p++) {
+        int8_t i = big_index(*p);
+        if (i < 0) { cx = (uint8_t)(cx + BIG_SPACE_W + BIG_GAP); continue; }
+        uint8_t w = BIG_W[i];
+        for (uint8_t row = 0; row < BIG_H; row++) {
+            uint8_t bits = pgm_read_byte(&BIG_ROWS[i][row]);
+            uint8_t col = 0;
+            while (col < w) {                      /* one fill per horizontal run */
+                if (!(bits & (1 << (w - 1 - col)))) { col++; continue; }
+                uint8_t start = col;
+                while (col < w && (bits & (1 << (w - 1 - col)))) col++;
+                st7735_fill_rect((uint8_t)(cx + start), (uint8_t)(y + row),
+                                 (uint8_t)(col - start), 1, color);
+            }
+        }
+        cx = (uint8_t)(cx + w + BIG_GAP);
+    }
+}

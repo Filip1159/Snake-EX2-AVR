@@ -27,6 +27,14 @@ uint8_t text_width(const char *txt, uint8_t scale);
 /** Pixel width of a PROGMEM string at the given scale. */
 uint8_t text_width_p(const char *txt_p, uint8_t scale);
 
+/** Bold 12-row proportional font for the main-menu list and soft key (cap height 10,
+ *  baseline below row 9). Only the glyphs the menu labels need exist (see
+ *  tools/gen_bigfont.py); space is 4 px wide, other characters render as space. */
+void text_draw_big(uint8_t x, uint8_t y, const char *txt, uint16_t color);
+
+/** Pixel width of a string in the bold menu font. */
+uint8_t text_width_big(const char *txt);
+
 #ifdef __cplusplus
 }
 #endif

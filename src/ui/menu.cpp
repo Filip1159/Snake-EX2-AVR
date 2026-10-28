@@ -97,11 +97,11 @@ static void draw_row(uint8_t index) {
     const char *label = MENU_LABELS[index];
 
     st7735_fill_rect(0, y, MENU_W, MENU_ROW_H, bg);
-    text_draw(4, (uint8_t)(y + 7), label, 1, ink);
+    text_draw_big(4, (uint8_t)(y + 4), label, ink);
 
     if (!selected) {
-        uint8_t end = (uint8_t)(4 + text_width(label, 1) + 4);
-        dotted_leader(end, 124, (uint8_t)(y + 10), MENU_DOT);
+        uint8_t end = (uint8_t)(4 + text_width_big(label) + 4);
+        dotted_leader(end, 124, (uint8_t)(y + 13), MENU_DOT);   /* on the baseline */
     }
 }
 
@@ -109,13 +109,15 @@ static void draw_softkeys(void) {
     st7735_fill_rect(0, MENU_FOOTER_Y, MENU_W, MENU_FOOTER_H, MENU_BG);
     st7735_fill_rect(0, MENU_FOOTER_Y, MENU_W, 1, MENU_RULE);
 
-    text_draw(4, 148, MENU_SOFT_LEFT, 1, MENU_SOFT_INK);
+    /* "Select" is the main action: bold and centred. */
+    uint8_t lw = text_width_big(MENU_SOFT_LEFT);
+    uint8_t lx = (uint8_t)((MENU_W - lw) / 2);
+    text_draw_big(lx, 144, MENU_SOFT_LEFT, MENU_SOFT_INK);
     {
-        uint8_t lw = text_width(MENU_SOFT_LEFT, 1);
         uint8_t rw = text_width(MENU_SOFT_RIGHT, 1);
         uint8_t rx = (uint8_t)(MENU_W - rw - 4);
         text_draw(rx, 148, MENU_SOFT_RIGHT, 1, MENU_SOFT_INK);
-        dotted_leader((uint8_t)(lw + 9), (uint8_t)(rx - 5), 151, MENU_DOT);
+        dotted_leader((uint8_t)(lx + lw + 5), (uint8_t)(rx - 5), 153, MENU_DOT);
     }
 }
 
