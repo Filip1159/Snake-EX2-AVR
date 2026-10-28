@@ -20,10 +20,9 @@ extern "C" {
 #define CHROME_TITLE_H    16
 #define CHROME_INK        0x0000
 #define CHROME_SOFT_INK   0x0010
-#define CHROME_DOT        0x8410
 #define CHROME_ROW_H      20
 #define CHROME_LIST_Y     30          /* top of the first list row and of the scrollbar */
-#define CHROME_SCROLL_X   121
+#define CHROME_SCROLL_X   122
 #define CHROME_BAND_W     120
 #define CHROME_HL_INK     0xFFFF
 
@@ -38,16 +37,13 @@ void chrome_draw_wallpaper(void);
 /** Restore background pixels of the rectangle (x,y,w,h). */
 void chrome_restore(uint8_t x, uint8_t w, uint8_t y, uint8_t h);
 
-/** Dotted leader line (1 px dots every 4 px) from x0 to x1 at row y. */
-void chrome_dotted_leader(uint8_t x0, uint8_t x1, uint8_t y, uint16_t color);
-
 /** Status bar copied from the S40 screenshot: antenna, signal, battery and a clock
  *  (decorative: the port has no RTC); with chrome_set_silent(true) also the red muted-note
  *  icon and "Silent". Transparent, so it works on any background. */
 void chrome_set_silent(bool silent);
 void chrome_draw_status_bar(void);
 
-/** Title row: `title` at the left, a dotted leader, and optional `right` text right-aligned
+/** Title row: `title` at the left and optional `right` text right-aligned
  *  at x=126 (the menu's item index, the high-score mode). Repaints the row's wallpaper. */
 void chrome_draw_title(const char *title, const char *right);
 
@@ -62,8 +58,7 @@ void chrome_draw_band_part(uint8_t y, uint8_t x, uint8_t w);
 void chrome_scrollbar_draw(uint8_t count, uint8_t selected);
 void chrome_scrollbar_move(uint8_t count, uint8_t to);
 
-/** Soft keys: `left` bold and centred (the main action), `right` bottom-right, a dotted
- *  leader between them. */
+/** Soft keys: `left` bold and centred (the main action), `right` bottom-right. */
 void chrome_draw_softkeys(const char *left, const char *right);
 
 /** Right soft key label in the bottom-right corner. Returns its left x. */

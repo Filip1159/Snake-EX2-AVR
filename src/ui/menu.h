@@ -2,8 +2,8 @@
  * menu.h — Title-screen main menu state and renderer (BACKLOG U1).
  *
  * The menu is a reconstruction of the original Series 40 list UI: a small
- * status bar, a title row, full-width rows with dotted
- * leaders, and Select/Exit soft keys. Up/left moves to the previous item,
+ * status bar, a title row, full-width rows
+ * and Select/Exit soft keys. Up/left moves to the previous item,
  * down/right to the next, Fire selects, Pause goes back.
  */
 #ifndef UI_MENU_H

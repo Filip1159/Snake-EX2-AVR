@@ -22,11 +22,6 @@
 #define HS_SCORE_DIGITS 6
 #define HS_DIGIT_PITCH  8
 
-static const char *const HS_MODE_NAMES[HS_MODE_COUNT] = {
-    "Classic",
-    "Extreme",
-};
-
 /** Original six-digit score (SnakeCanvas.a: 8 px pitch, zero padded).  Empty
  *  slots keep the reconstructed table's dashes rather than six zeros. */
 static void draw_score_value(uint8_t x, uint8_t y, uint32_t v) {
@@ -72,8 +67,6 @@ bool highscores_submit(uint32_t score, bool extreme) {
 void highscores_draw(hs_mode_t mode) {
     chrome_use_flat(COLOR_FIELD_BG);          /* same background as the game board */
     chrome_draw_wallpaper();
-    chrome_draw_status_bar();
-    chrome_draw_title("Snake EX2", HS_MODE_NAMES[mode]);
 
     /* Snake.java:710-719: two g medals beside the top score, a G frame per score,
      * then the six-digit scores inside the frames. */
@@ -88,6 +81,4 @@ void highscores_draw(hs_mode_t mode) {
             img_draw(HS_BADGE2_X, (uint8_t)(y + HS_BADGE_DY), &IMG_HS_BADGE);
         }
     }
-
-    chrome_draw_softkey_right("Back");
 }

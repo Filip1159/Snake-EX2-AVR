@@ -190,10 +190,9 @@ Title/menu (U1):
   centred `OPTIONS` button, approximating the supplied Nokia reference screenshot.
 - `src/ui/menu.{h,cpp}` reconstructs the S40 `List` screen at 128×160: a 14 px
   decorative status bar (antenna, signal bars, battery, no-SIM mark, "Silent" and a static `18:52` clock, a transparent sprite extracted from `Nokia-GUI4.jpg` by `tools/gen_statusbar.py`), a 16 px
-  `Snake EX2` title row with a dotted leader and list indicator `1`, four 20 px
-  mixed-case rows (New game / High scores / Settings / Instructions) with dotted
-  leaders, and a 20 px soft-key row with `Select`/`Exit`. The selected row is a
-  full-width light-blue band with dark text, matching the reference screenshot.
+  `Snake EX2` title row with list indicator `1`, four 20 px
+  mixed-case rows (New game / High scores / Settings / Instructions), and a 20 px soft-key row with `Select`/`Exit`. The selected row is a
+  blue gradient band (sampled from `Nokia-GUI.jpg`, right corners rounded by 2 px, as is the scrollbar thumb) with white text, matching the reference screenshot.
   Up/Left selects the previous item, Down/Right the next (wrapping), Fire selects, and
   Pause returns to the title. With a saved game a "Continue" row is added on top. Selection moves repaint only the old and new rows;
   the full menu is drawn only on entry (or after returning from an info screen).
@@ -229,9 +228,8 @@ High scores (U3):
 - Navigation: main menu → "High scores" → a Classic/Extreme list (the main menu's list
   component with a "Back" soft key, `menu_open(MENU_LIST_SCORES)`) → the top-3 view.
   Pause/Fire in the view returns to the list; Pause in the list returns to the main menu.
-- `src/ui/highscores.{h,cpp}` draws the view over the shared S40 chrome
-  (`src/ui/chrome.{h,cpp}`: wallpaper, status bar, "Snake EX2" title row with the mode name
-  at the right, "Back" soft key): three score frames with six-digit scores (dashes for
+- `src/ui/highscores.{h,cpp}` draws the view on the flat game-board colour, without a top bar,
+  title or soft key: three score frames with six-digit scores (dashes for
   empty slots) and the two medals beside the best. Classic uses EEPROM scores 0..2,
   Extreme 3..5 (`SCORES_PER_MODE` = 3; blocks at 32 and 48, CRCs at 44 and 60 — an older
   2-score layout fails its CRC and the table starts empty).

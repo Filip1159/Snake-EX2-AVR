@@ -13,7 +13,6 @@
 #define SET_FIRST_Y     30
 #define SET_LABEL_X     4
 #define SET_VALUE_END   116          /* values are right-aligned to this x */
-#define SET_LEADER_END  (SET_VALUE_END + 2)
 
 static setting_item_t s_selected;
 static uint8_t s_value_x[SETTING_COUNT];   /* left edge of each drawn value */
@@ -78,11 +77,6 @@ static void draw_row(uint8_t index) {
     uint8_t vx = value_x(value);
     text_draw_big(vx, (uint8_t)(y + 3), value, ink);
     s_value_x[index] = vx;
-
-    if (!selected) {
-        uint8_t from = (uint8_t)(SET_LABEL_X + text_width_big(label) + 4);
-        chrome_dotted_leader(from, (uint8_t)(vx - 4), (uint8_t)(y + 14), CHROME_DOT);
-    }
 }
 
 void settings_init(void) {

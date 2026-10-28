@@ -96,12 +96,12 @@ int main() {
         int y = 30 + i * 20;
         CHECK(non_bg(4, y + 4, 40, 12, fb[y + 2][122]) > 20);  /* label ink on the row */
     }
-    CHECK(fb[30][0] == 0x0B35 && fb[49][0] == 0x01AF);        /* first row is the selected band */
-    CHECK(fb[31][119] != fb[31][120]);                         /* band is 120 wide */
+    CHECK(fb[30][0] == 0x03DB && fb[49][0] == 0x02F8);        /* first row is the selected band */
+    CHECK(fb[40][119] != fb[40][120]);                         /* band is 120 wide */
     CHECK(count_color(4, 34, 40, 12, 0xFFFF) > 20);            /* selected label is white */
     CHECK(count_color(50, 144, 28, 12, 0x0010) > 20);          /* "Save", centred */
     CHECK(count_color(100, 148, 24, 7, 0x0010) > 10);          /* "Back" bottom-right */
-    CHECK(fb[100][123] == 0x7C7A && fb[35][121] == 0xFFFF);    /* scrollbar track + thumb */
+    CHECK(fb[100][124] == 0x7C7A && fb[35][122] == 0xFFFF);    /* scrollbar track + thumb */
     CHECK(count_color(60, 34, 56, 12, 0xFFFF) > 20);           /* value text */
 
     /* Adjusting a value repaints only that row (settings_draw_value). */

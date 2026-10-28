@@ -3,7 +3,7 @@
  *
  * The original MIDlet uses the phone's native List UI rather than drawing a
  * menu on the game canvas.  This renderer reconstructs the 128×160 S40 list:
- * a small status bar, the list title, full-width rows with dotted leaders, a
+ * a small status bar, the list title, full-width rows, a
  * scrollbar and Select/Exit(Back) soft keys over the reconstructed S40 wallpaper
  * (IMG_WALLPAPER, see chrome.cpp).  The selected row is a blue-to-navy gradient
  * band with white text.
@@ -16,7 +16,6 @@
 #define MENU_FIRST_Y    CHROME_LIST_Y
 #define MENU_ROW_H      CHROME_ROW_H
 
-#define MENU_LEADER_END 118
 
 #define MENU_SOFT_LEFT  "Select"
 
@@ -62,11 +61,6 @@ static void draw_row(uint8_t index) {
     if (selected) chrome_draw_band(y);
     else          chrome_restore(0, CHROME_SCROLL_X, y, MENU_ROW_H);   /* the bar is never touched */
     text_draw_big(4, (uint8_t)(y + 3), label, ink);
-
-    if (!selected) {
-        uint8_t end = (uint8_t)(4 + text_width_big(label) + 4);
-        chrome_dotted_leader(end, MENU_LEADER_END, (uint8_t)(y + 14), CHROME_DOT);   /* on the baseline */
-    }
 }
 
 void menu_open(menu_list_t list) {

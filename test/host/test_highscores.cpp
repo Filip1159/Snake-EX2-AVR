@@ -70,17 +70,6 @@ static int count_color(int x, int y, int w, int h, uint16_t color) {
     return n;
 }
 
-/* Pixels in the box that are dark navy ink (RGB565 red < 6, green < 24). */
-static int dark_count(int x, int y, int w, int h) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++) {
-            uint16_t c = fb[y + j][x + i];
-            if ((c >> 11) < 6 && ((c >> 5) & 63) < 24) n++;
-        }
-    return n;
-}
-
 int main() {
     /* Qualify check with empty scores */
     CHECK(highscores_qualifies(100, false));
@@ -102,12 +91,10 @@ int main() {
     highscores_draw(HS_MODE_CLASSIC);
     CHECK(fb[100][5] == COLOR_FIELD_BG && fb[16][100] == COLOR_FIELD_BG && fb[155][5] == COLOR_FIELD_BG);
 
-    /* Draw: chrome (status bar, title, Back), three frames, medals beside the best one */
+    /* Draw: no top bar, title or soft key - only the frames and medals on the flat background */
     highscores_draw(HS_MODE_CLASSIC);
-    CHECK(dark_count(96, 1, 32, 12) > 25);          /* status bar: the clock digits */
-    CHECK(count_color(4, 18, 54, 7, 0x0000) > 20);         /* "Snake EX2" */
-    CHECK(count_color(86, 18, 41, 7, 0x0000) > 10);        /* mode name "Classic" at the right */
-    CHECK(count_color(100, 148, 24, 7, 0x0010) > 10);      /* "Back" bottom-right */
+    CHECK(non_bg(0, 0, 128, 38, COLOR_FIELD_BG) == 0);       /* nothing above the first frame */
+    CHECK(non_bg(0, 130, 128, 30, COLOR_FIELD_BG) == 0);     /* nothing below the last one */
     for (int rank = 0; rank < 3; rank++)
         CHECK(non_bg(33, 38 + rank * 34, 60, 21, 0xFFFF) > 20);   /* score frame */
     CHECK(non_bg(20, 43, 11, 11, 0xFFFF) > 10);              /* medals beside the best score only */

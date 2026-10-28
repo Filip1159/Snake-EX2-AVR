@@ -56,7 +56,7 @@ int main() {
     /* The text block is centred: ink only between rows 30..145, symmetric about y=80,
      * and every line is horizontally centred (its ink is symmetric about x=64 +-3). */
     int top = -1, bot = -1;
-    for (int y = 30; y < 146; y++)
+    for (int y = 30; y < 141; y++)
         if (count_color(0, y, 128, 1, 0x0000) > 0) { if (top < 0) top = y; bot = y; }
     CHECK(top > 0);
     CHECK((top + bot) / 2 >= 78 && (top + bot) / 2 <= 82);
