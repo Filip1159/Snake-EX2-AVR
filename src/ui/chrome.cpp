@@ -34,18 +34,23 @@ void chrome_dotted_leader(uint8_t x0, uint8_t x1, uint8_t y, uint16_t color) {
     }
 }
 
+static bool s_silent;
+
+void chrome_set_silent(bool silent) { s_silent = silent; }
+
 void chrome_draw_status_bar(void) {
     sprite_draw_p(STATUSBAR_X, STATUSBAR_Y, &SPR_STATUSBAR);
+    if (s_silent) sprite_draw_p(SILENT_X, SILENT_Y, &SPR_SILENT);
 }
 
 void chrome_draw_title(const char *title, const char *right) {
     chrome_restore(0, CHROME_W, CHROME_TITLE_Y, CHROME_TITLE_H);
-    text_draw(4, 18, title, 1, CHROME_INK);
+    text_draw(4, CHROME_TITLE_Y, title, 1, CHROME_INK);
 
     uint8_t leader_end = 118;
     if (right) {
         uint8_t rx = (uint8_t)(CHROME_RIGHT_EDGE + 1 - text_width(right, 1));
-        text_draw(rx, 18, right, 1, CHROME_INK);
+        text_draw(rx, CHROME_TITLE_Y, right, 1, CHROME_INK);
         leader_end = (uint8_t)(rx - 3);
     }
     chrome_dotted_leader((uint8_t)(4 + text_width(title, 1) + 3), leader_end, 21, CHROME_DOT);
@@ -53,7 +58,7 @@ void chrome_draw_title(const char *title, const char *right) {
 
 uint8_t chrome_draw_softkey_right(const char *label) {
     uint8_t rx = (uint8_t)(CHROME_W - text_width(label, 1) - 4);
-    text_draw(rx, 148, label, 1, CHROME_SOFT_INK);
+    text_draw(rx, CHROME_SOFTKEY_Y, label, 1, CHROME_SOFT_INK);
     return rx;
 }
 
@@ -87,9 +92,9 @@ void chrome_draw_band(uint8_t y) {
 void chrome_draw_softkeys(const char *left, const char *right) {
     uint8_t lw = text_width_big(left);
     uint8_t lx = (uint8_t)((CHROME_W - lw) / 2);
-    text_draw_big(lx, 144, left, CHROME_SOFT_INK);
+    text_draw_big(lx, CHROME_SOFTKEY_BIG_Y, left, CHROME_SOFT_INK);
     uint8_t rx = chrome_draw_softkey_right(right);
-    chrome_dotted_leader((uint8_t)(lx + lw + 5), (uint8_t)(rx - 5), 153, CHROME_DOT);
+    chrome_dotted_leader((uint8_t)(lx + lw + 5), (uint8_t)(rx - 5), CHROME_SOFTKEY_BIG_Y + 11, CHROME_DOT);
 }
 
 /* ── Scrollbar ────────────────────────────────────────────────────────────── */

@@ -110,16 +110,17 @@ int main() {
     CHECK(text_width("A", 1) == 5);
     CHECK(text_width("ABC", 1) == 17);
     CHECK(text_width("ABC", 2) == 34);
-    CHECK(text_width("a", 1) == 5);
-    CHECK(text_width("Snake EX2", 1) == 53);
+    CHECK(text_width("a", 1) == 4);            /* proportional */
+    CHECK(text_width("i", 1) == 1 && text_width("m", 1) == 5);
+    CHECK(text_width("Snake EX2", 1) == 47);
 
     /* Lowercase glyphs are distinct from uppercase, not folded. */
     memset(fb, 0xFF, sizeof fb);
     text_draw(0, 0, "a", 1, 0x0000);
-    int lower_pixels = non_bg(0, 0, 5, 7, 0xFFFF);
+    int lower_pixels = non_bg(0, 0, 5, 13, 0xFFFF);
     memset(fb, 0xFF, sizeof fb);
     text_draw(0, 0, "A", 1, 0x0000);
-    int upper_pixels = non_bg(0, 0, 5, 7, 0xFFFF);
+    int upper_pixels = non_bg(0, 0, 5, 13, 0xFFFF);
     CHECK(lower_pixels > 0 && upper_pixels > 0 && lower_pixels != upper_pixels);
 
     menu_init();
@@ -166,12 +167,12 @@ int main() {
     CHECK(non_wall(0, 140, 128, 20) > 20);     /* soft keys + rule */
     CHECK(non_wall(46, 144, 36, 12) > 60);     /* bold, centred "Select" */
     CHECK(non_wall(0, 142, 40, 14) == 0);      /* nothing left of it */
-    CHECK(text_width_big("Select") == 36 && text_width_big("Instructions") == 77);
+    CHECK(text_width_big("Select") == 38 && text_width_big("Instructions") == 76);
 
     /* The selected row has no dotted leader; the other rows do. */
-    CHECK(count_color(80, 43, 44, 1, 0x8410) == 0);
-    CHECK(non_wall(80, 63, 44, 1) > 5);
-    CHECK(non_wall(95, 103, 29, 1) > 5);
+    CHECK(count_color(80, 44, 44, 1, 0x8410) == 0);
+    CHECK(non_wall(80, 64, 44, 1) > 5);
+    CHECK(non_wall(95, 104, 29, 1) > 5);
 
     /* Scrollbar: a 3 px track (x=122..124) from the list top (y=30) to just above "Exit"
      * (y=145), centred under the 6 px thumb (x=121..126: 5 px body + shadow). The thumb is
@@ -185,11 +186,11 @@ int main() {
     CHECK(fb[100][126] == wall[100][126] && fb[100][127] == wall[100][127]);
     CHECK(fb[29][123] == wall[29][123] && fb[146][123] == wall[146][123]);     /* nothing beyond the track */
     CHECK(count_color(120, 14, 8, 16, 0x0000) > 5);                 /* index digit */
-    {   /* the digit is as wide as the thumb body (5 px) and starts at its left edge */
+    {   /* the digit is right-aligned at x=126 over the thumb */
         int left = 128, right = 0;
         for (int y = 14; y < 30; y++) for (int x = 119; x < 128; x++)
             if (fb[y][x] == 0x0000) { if (x < left) left = x; if (x > right) right = x; }
-        CHECK(left >= 121 && right <= 125);
+        CHECK(left >= 121 && right <= 126);
     }
     {   /* thumb height is 1/4 of the track at every position */
         for (int item = 0; item < 4; item++) {

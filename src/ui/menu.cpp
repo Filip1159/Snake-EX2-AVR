@@ -61,11 +61,11 @@ static void draw_row(uint8_t index) {
 
     if (selected) chrome_draw_band(y);
     else          chrome_restore(0, CHROME_SCROLL_X, y, MENU_ROW_H);   /* the bar is never touched */
-    text_draw_big(4, (uint8_t)(y + 4), label, ink);
+    text_draw_big(4, (uint8_t)(y + 3), label, ink);
 
     if (!selected) {
         uint8_t end = (uint8_t)(4 + text_width_big(label) + 4);
-        chrome_dotted_leader(end, MENU_LEADER_END, (uint8_t)(y + 13), CHROME_DOT);   /* on the baseline */
+        chrome_dotted_leader(end, MENU_LEADER_END, (uint8_t)(y + 14), CHROME_DOT);   /* on the baseline */
     }
 }
 

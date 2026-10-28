@@ -7,13 +7,16 @@
 #define UI_CHROME_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
 #endif
 
 #define CHROME_W          128
-#define CHROME_TITLE_Y    14
+#define CHROME_TITLE_Y    14          /* top of the small font frame (baseline at +9) */
+#define CHROME_SOFTKEY_Y  147         /* small right soft key: baseline at 156 */
+#define CHROME_SOFTKEY_BIG_Y 144      /* bold centre soft key: baseline at 155 */
 #define CHROME_TITLE_H    16
 #define CHROME_INK        0x0000
 #define CHROME_SOFT_INK   0x0010
@@ -38,8 +41,10 @@ void chrome_restore(uint8_t x, uint8_t w, uint8_t y, uint8_t h);
 /** Dotted leader line (1 px dots every 4 px) from x0 to x1 at row y. */
 void chrome_dotted_leader(uint8_t x0, uint8_t x1, uint8_t y, uint16_t color);
 
-/** Status bar copied from the S40 screenshot: signal, battery, "Silent" and a clock
- *  (decorative: the port has no RTC). Transparent, so it works on any background. */
+/** Status bar copied from the S40 screenshot: antenna, signal, battery and a clock
+ *  (decorative: the port has no RTC); with chrome_set_silent(true) also the red muted-note
+ *  icon and "Silent". Transparent, so it works on any background. */
+void chrome_set_silent(bool silent);
 void chrome_draw_status_bar(void);
 
 /** Title row: `title` at the left, a dotted leader, and optional `right` text right-aligned

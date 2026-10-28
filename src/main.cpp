@@ -30,6 +30,7 @@
 #include "render/playfield.h"
 #include "render/text.h"
 #include "ui/menu.h"
+#include "ui/chrome.h"
 #include "ui/settings.h"
 #include "ui/highscores.h"
 #include "ui/credits.h"
@@ -63,6 +64,11 @@ int16_t           s_hud_bonus;
 uint8_t           s_hud_pu;
 
 /* ── Small helpers ──────────────────────────────────────────────────────── */
+
+/* The status bar shows "Silent" while the sound setting is off. */
+static void sync_silent_indicator(void) {
+    chrome_set_silent(!eeprom_get_settings()->sound_on);
+}
 
 static void play_sfx(uint8_t id) {
     if (eeprom_get_settings()->sound_on) buzzer_play(id);
@@ -244,6 +250,7 @@ void setup() {
     eeprom_store_init();                 // writes/repairs defaults on first boot
 
     st7735_backlight(eeprom_get_settings()->backlight);
+    sync_silent_indicator();
     enter_title();
 }
 
@@ -296,6 +303,7 @@ void loop() {
                     settings_draw_value(settings_selected());
                 } else if (ev == BTN_EVENT_PRESS && btn == BTN_FIRE) {
                     settings_save();      /* "Save": store everything, back to the menu */
+                    sync_silent_indicator();
                     show_menu();
                 } else if (ev == BTN_EVENT_PRESS && btn == BTN_PAUSE) {
                     show_menu();          /* "Back": discard the edits */

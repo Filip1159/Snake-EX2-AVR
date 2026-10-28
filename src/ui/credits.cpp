@@ -8,7 +8,8 @@
 #include "drivers/stack_measure.h"
 #include "config.h"
 
-#define CREDITS_LINE_H  10
+#define CREDITS_LINE_H  14           /* small font frame is 13 rows */
+#define CREDITS_INK_H   10           /* ink rows of a line without descenders (frame rows 0..9) */
 #define CREDITS_GAP     6            /* extra space between the author and the link */
 #define SCREEN_H        160
 
@@ -46,7 +47,7 @@ static void draw_stack_debug(uint8_t y) {
 
     st7735_fill_rect(0, (uint8_t)(y - 2), 128, 12, 0x0000);
     text_draw(4, y, "STACK FREE:", 1, 0xFFFF);
-    text_draw(4 + 11 * 6, y, num, 1, 0xFFFF);
+    text_draw((uint8_t)(4 + text_width("STACK FREE:", 1) + 4), y, num, 1, 0xFFFF);
 }
 #endif
 
@@ -57,7 +58,7 @@ void credits_draw(void) {
     chrome_draw_title("Snake EX2", 0);
 
     uint8_t lines = (uint8_t)(COUNT(AUTHOR) + COUNT(LINK));
-    uint8_t h = (uint8_t)(lines * CREDITS_LINE_H - (CREDITS_LINE_H - 7) + CREDITS_GAP);
+    uint8_t h = (uint8_t)((lines - 1) * CREDITS_LINE_H + CREDITS_INK_H + CREDITS_GAP);
     uint8_t y = (uint8_t)((SCREEN_H - h) / 2);
     y = draw_lines(AUTHOR, COUNT(AUTHOR), y);
     draw_lines(LINK, COUNT(LINK), (uint8_t)(y + CREDITS_GAP));

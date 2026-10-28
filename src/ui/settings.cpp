@@ -73,15 +73,15 @@ static void draw_row(uint8_t index) {
 
     if (selected) chrome_draw_band(y);
     else          chrome_restore(0, CHROME_SCROLL_X, y, CHROME_ROW_H);   /* the bar is never touched */
-    text_draw_big(SET_LABEL_X, (uint8_t)(y + 4), label, ink);
+    text_draw_big(SET_LABEL_X, (uint8_t)(y + 3), label, ink);
 
     uint8_t vx = value_x(value);
-    text_draw_big(vx, (uint8_t)(y + 4), value, ink);
+    text_draw_big(vx, (uint8_t)(y + 3), value, ink);
     s_value_x[index] = vx;
 
     if (!selected) {
         uint8_t from = (uint8_t)(SET_LABEL_X + text_width_big(label) + 4);
-        chrome_dotted_leader(from, (uint8_t)(vx - 4), (uint8_t)(y + 13), CHROME_DOT);
+        chrome_dotted_leader(from, (uint8_t)(vx - 4), (uint8_t)(y + 14), CHROME_DOT);
     }
 }
 
@@ -164,6 +164,6 @@ void settings_draw_value(setting_item_t item) {
     uint8_t vx = value_x(value);
     uint8_t x0 = vx < s_value_x[item] ? vx : s_value_x[item];
     chrome_draw_band_part(y, x0, (uint8_t)(SET_VALUE_END - x0));
-    text_draw_big(vx, (uint8_t)(y + 4), value, CHROME_HL_INK);
+    text_draw_big(vx, (uint8_t)(y + 3), value, CHROME_HL_INK);
     s_value_x[item] = vx;
 }

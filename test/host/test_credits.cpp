@@ -73,6 +73,25 @@ int main() {
     }
     CHECK(lines == 5);
 
+    /* "Silent" and the red muted note only show with chrome_set_silent(true). */
+    auto reds = [](int x, int y, int w, int h) {
+        int n = 0;
+        for (int j = 0; j < h; j++)
+            for (int i = 0; i < w; i++) {
+                uint16_t c = fb[y + j][x + i];
+                if ((c >> 11) > 20 && ((c >> 5) & 63) < 28) n++;
+            }
+        return n;
+    };
+    chrome_set_silent(false);
+    credits_draw();
+    CHECK(reds(48, 1, 14, 12) == 0 && dark_count(62, 1, 30, 12) == 0);
+    chrome_set_silent(true);
+    credits_draw();
+    CHECK(reds(48, 1, 14, 12) > 5 && dark_count(62, 1, 24, 12) > 20);
+    CHECK(dark_count(96, 1, 32, 12) > 25);               /* the clock stays */
+    chrome_set_silent(false);
+
     printf(fails ? "credits: %d FAILED\n" : "credits: all passed\n", fails);
     return fails != 0;
 }

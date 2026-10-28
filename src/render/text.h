@@ -1,10 +1,9 @@
 /**
- * text.h — 5×7 bitmap text for menus and simple screens.
+ * text.h — Series 40 bitmap fonts for menus and screens (see tools/gen_fonts.py).
  *
- * The font is a compact ASCII subset: A–Z, a–z, 0–9, space, '-', '.' and
- * ':'. Each glyph occupies a 5×7 box; the horizontal advance is 5 + 1 pixels,
- * scaled. Lowercase glyphs use a 5-row x-height so mixed-case S40-style menus
- * can be rendered without changing the fixed-pitch layout used elsewhere.
+ * Small font (text_draw*): proportional, A–Z, a–z, 0–9, space and `. , - : /`; a 13-row
+ * frame whose top row is `y` (caps rows 1..9, baseline row 9, descenders to row 12), 1 px
+ * between glyphs.  Unknown characters render as a 3 px space.  `scale` multiplies sizes.
  */
 #ifndef RENDER_TEXT_H
 #define RENDER_TEXT_H
@@ -27,9 +26,10 @@ uint8_t text_width(const char *txt, uint8_t scale);
 /** Pixel width of a PROGMEM string at the given scale. */
 uint8_t text_width_p(const char *txt_p, uint8_t scale);
 
-/** Bold 12-row proportional font for the main-menu list and soft key (cap height 10,
- *  baseline below row 9). Only the glyphs the menu labels need exist (see
- *  tools/gen_bigfont.py); space is 4 px wide, other characters render as space. */
+/** Bold proportional list font for the menus and the centre soft key: a 15-row frame whose
+ *  top row is `y` (caps rows 1..11, baseline row 11, descenders to row 14). Glyphs: the
+ *  letters and digits the game's labels need (see tools/gen_fonts.py); space is 4 px wide,
+ *  other characters render as space. */
 void text_draw_big(uint8_t x, uint8_t y, const char *txt, uint16_t color);
 
 /** Pixel width of a string in the bold menu font. */
