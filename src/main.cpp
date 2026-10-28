@@ -208,8 +208,8 @@ static void start_game_from_settings(void) {
 
 void setup() {
 #if STACK_MEASURE
-    /* Paint free SRAM before any driver/game work; the pause/game-over screens
-     * report the low-water mark.  Release builds compile this out. */
+    /* Paint free SRAM before any driver/game work; the pause screen
+     * reports the low-water mark.  Release builds compile this out. */
     stack_measure_begin();
 #endif
 
@@ -370,7 +370,7 @@ void loop() {
             }
             hud_refresh();
         } else if (!s_over_shown) {
-            /* Game just ended: show game-over screen and handle input */
+            /* Game just ended: high-score entry, then the title screen with the score */
             s_over_shown = true;
             /* The table's first slot of the mode, read before an entry can change it. */
             bool new_best = s_game.score > eeprom_get_score(s_game.extreme ? 2 : 0);

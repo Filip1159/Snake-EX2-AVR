@@ -234,19 +234,16 @@ High scores (U3):
   dashes for empty slots, and full-screen rendering.
 
 Pause and game over (U4):
-- `src/ui/pause.{h,cpp}` provides a pause overlay and game-over screen.
+- `src/ui/pause.{h,cpp}` provides the pause overlay. When a game ends, the title screen
+  is shown with the final score (and two trophies for a new best) instead of a
+  separate game-over screen.
   - Pause overlay: draws a subtle grid pattern (every other pixel) over the frozen
     game, preserving the game state underneath. Options: Resume, Restart, Menu.
     Up/Down selects, Fire confirms, Pause also resumes.
-  - Game-over screen: full-screen fill with "GAME OVER", final score in yellow,
-    and two options: Restart, Menu. Up/Down selects, Fire confirms.
-  - Both screens preserve the underlying game state and return cleanly.
-    Resume continues exactly where left off; Restart starts a new game with
-    current settings; Menu returns to main menu.
-  - The old `show_game_over()` was replaced.
+  - Restart starts a new game with current settings; Menu returns to main menu.
+    Resume continues exactly where left off.
 - `test/host/test_pause.cpp` verifies the overlay uses a grid pattern (no
-  `fill_screen()` call) and the game-over screen does a full-screen fill with
-  score display.
+  `fill_screen()` call).
 
 Instructions/tutorial (U5):
 - `src/ui/instructions.{h,cpp}` provides the tutorial screen with 12 text pages

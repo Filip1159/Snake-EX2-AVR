@@ -200,7 +200,7 @@ make stack-measure-upload   # build and flash the debug image
 Alternatively, set `#define STACK_MEASURE 1` in `src/config.h` and rebuild normally.
 
 Play the longest game you care about (Extreme with a long snake, plus the menus), then
-pause or die. The pause and game-over screens show:
+pause or die. The pause screen shows:
 
 ```
 STACK FREE: NNNN

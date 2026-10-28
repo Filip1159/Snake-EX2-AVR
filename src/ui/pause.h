@@ -1,5 +1,5 @@
 /**
- * pause.h — Pause overlay and game-over screen (BACKLOG U4).
+ * pause.h — Pause overlay (BACKLOG U4).
  */
 #ifndef UI_PAUSE_H
 #define UI_PAUSE_H
@@ -23,18 +23,6 @@ typedef enum {
 } pause_action_t;
 
 pause_action_t pause_handle_input(void);
-
-/** Game-over screen with final score and options. */
-void gameover_show(uint32_t score, bool extreme);
-
-/** Handle input on game-over screen. Returns the action chosen. */
-typedef enum {
-    GO_ACTION_NONE = 0,
-    GO_ACTION_RESTART,
-    GO_ACTION_MENU,
-} go_action_t;
-
-go_action_t gameover_handle_input(void);
 
 #ifdef __cplusplus
 }

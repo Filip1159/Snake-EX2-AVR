@@ -1,4 +1,4 @@
-/* Host test: pause overlay and game-over screen. */
+/* Host test: pause overlay. */
 #include "ui/pause.h"
 #include "render/text.h"
 #include "drivers/st7735.h"
@@ -33,14 +33,6 @@ void st7735_fill_rect(uint8_t x, uint8_t y, uint8_t w, uint8_t h, uint16_t c) {
 }
 }
 
-static int non_bg(int x, int y, int w, int h, uint16_t bg) {
-    int n = 0;
-    for (int j = 0; j < h; j++)
-        for (int i = 0; i < w; i++)
-            if (fb[y + j][x + i] != bg) n++;
-    return n;
-}
-
 static int fails;
 #define CHECK(c) do { if (!(c)) { printf("FAIL line %d: %s\n", __LINE__, #c); fails++; } } while (0)
 
@@ -56,19 +48,10 @@ int main() {
     CHECK(fb[0][0] == 0x0000);
     CHECK(fb[0][1] == 0xFFFF);
 
-    /* Game-over screen does a full-screen fill */
-    fill_screen_calls = 0;
-    gameover_show(12345, false);
-    CHECK(fill_screen_calls == 1);
-    CHECK(fb[0][0] == 0x0000);
-    CHECK(non_bg(0, 20, 128, 20, 0x0000) > 20);  /* title area */
-
-    /* Both blocking UI loops service the buzzer. */
+    /* The blocking pause loop services the buzzer. */
     mock_buzzer_updates = 0;
     pause_handle_input();
     CHECK(mock_buzzer_updates == 1);
-    gameover_handle_input();
-    CHECK(mock_buzzer_updates == 2);
 
     printf(fails ? "pause: %d FAILED\n" : "pause: all passed\n", fails);
     return fails != 0;

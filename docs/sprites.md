@@ -23,7 +23,7 @@ decode cannot slip back in.
 | `C` | power-up item on the field, 8x8 at (-1,-1) |
 | `c` | stage-marker object (Y==1/2 stages), 10x10 at (-2,-2) |
 | `f.png` | tongue 11x11 (rotated 0/90/180/270 by head direction) |
-| `d`, `D` | high-score decoration (game-over screen) |
+| `d`, `D` | high-score decoration (unused; trophy `d` is in `src/assets/trophy.cpp`) |
 | B0 right, B1 left, B2 up, B5 down | straight body (B3 = up / B4 = down, counter-clockwise stripe phase) |
 | B6..B9 | corners; B10, B11 = counter-clockwise variants of B6, B7 |
 | B12..B17 | fat (food inside) straight: 0->12 1->13 2->14 5->17; ccw: 14->15, 17->16 |
