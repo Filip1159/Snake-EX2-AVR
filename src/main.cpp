@@ -5,9 +5,10 @@
  *
  *   TITLE  full-screen title art, 3 s or key; after a game it shows the final
  *          score (plus two trophies for a new best) and waits for a key
- *   MENU   New game / High scores / Settings / Instructions (full 128×160)
- *   INFO   placeholder screen for the menu items owned by U2/U3/U5
- *   GAME   Classic or Extreme, using the saved EEPROM settings
+ *   MENU   [Continue] / New game / High scores / Settings / Instructions (full 128×160)
+ *   INFO   credits
+ *   GAME   Classic or Extreme, using the saved EEPROM settings. Back (Pause) saves the
+ *          game to EEPROM and returns to the menu; Continue restores it and waits for Fire
  *
  * The old hardware self-test is no longer run at boot: the drivers are covered
  * by the host tests and have been hardware-verified. Keeping boot on the title
@@ -31,13 +32,13 @@
 #include "ui/menu.h"
 #include "ui/settings.h"
 #include "ui/highscores.h"
-#include "ui/pause.h"
 #include "ui/credits.h"
 #include "screens.h"
 #include "gamestate.h"
 #include "game/game.h"
 #include "game/classic.h"
 #include "game/rng.h"
+#include "game/savegame.h"
 
 #define C_YELLOW  0xFFE0
 
@@ -52,7 +53,8 @@ static uint8_t           s_map[MAZE_CELLS];
 /* Game state */
 game_t            s_game;
 playfield_cache_t s_cache;
-bool              s_paused;
+bool              s_wait_start;      /* restored game waits for Fire */
+bool              s_mask_fire;       /* ignore the Fire that started it until released */
 bool              s_over_shown;
 bool              s_hs_checked;      /* score saved for this game */
 uint32_t          s_next_tick;
@@ -83,6 +85,7 @@ static void enter_title_score(uint32_t score, bool new_best) {
 }
 
 static void enter_menu(void) {
+    menu_set_continue(savegame_exists());
     menu_init();
     menu_draw();
     s_screen = SCREEN_MENU;
@@ -125,8 +128,9 @@ static void enter_highscores(hs_mode_t mode) {
 
 /* Back from the Classic/Extreme list: main menu with High scores highlighted. */
 static void leave_highscores_menu(void) {
+    menu_set_continue(savegame_exists());
     menu_init();
-    menu_move(MENU_ITEM_HIGH_SCORES);
+    menu_move((int8_t)menu_index_of(MENU_ITEM_HIGH_SCORES));
     menu_draw();
     s_screen = SCREEN_MENU;
 }
@@ -151,6 +155,24 @@ static void hud_refresh(void) {
     if (id != s_hud_pu) { hud_draw_powerup(id); s_hud_pu = id; }
 }
 
+/* Draw the board and HUD of s_game and enter the game screen. */
+static void begin_game_screen(void) {
+    game_set_maze_source(&s_game, s_map, maze_load);
+    game_rand_seed(millis() * 2654435761u + 1u);
+    playfield_draw_all(&s_game, &s_cache);
+    hud_draw_bar();
+    s_hud_score = 0xFFFFFFFFu;
+    s_hud_bonus = -32768;
+    s_hud_pu = 0xFF;
+    hud_refresh();
+    s_wait_start = false;
+    s_mask_fire = false;
+    s_over_shown = false;
+    s_hs_checked = false;
+    s_next_tick = millis() + FRAME_MS;
+    s_screen = SCREEN_GAME;
+}
+
 static void start_game_from_settings(void) {
     const settings_t *st = eeprom_get_settings();
     uint8_t speed = st->speed;
@@ -170,27 +192,36 @@ static void start_game_from_settings(void) {
             game_init_classic(&s_game, 2, MAZE_NONE, NULL);
         }
     }
+    begin_game_screen();
+}
 
-    game_set_maze_source(&s_game, s_map, maze_load);
-    game_rand_seed(millis() * 2654435761u + 1u);
-    playfield_draw_all(&s_game, &s_cache);
-    hud_draw_bar();
-    s_hud_score = 0xFFFFFFFFu;
-    s_hud_bonus = -32768;
-    s_hud_pu = 0xFF;
-    hud_refresh();
-    s_paused = false;
-    s_over_shown = false;
-    s_hs_checked = false;
-    s_next_tick = millis() + FRAME_MS;
-    s_screen = SCREEN_GAME;
+/* Menu "Continue": restore the saved game, frozen until Fire is pressed. */
+static void continue_saved_game(void) {
+    bool ok = savegame_load(&s_game);
+    if (ok && s_game.maze >= 0) {
+        ok = maze_load((uint8_t)s_game.maze, s_map) == 0;
+        if (ok) s_game.map = s_map;
+    }
+    savegame_clear();                   /* consumed: Back saves the game again */
+    if (!ok) { enter_menu(); return; }
+
+    st7735_backlight(eeprom_get_settings()->backlight);
+    begin_game_screen();
+    s_wait_start = true;
+}
+
+/* Back during a game: save it and go to the menu, where "Continue" now leads. */
+static void save_game_and_leave(void) {
+    if (s_game.game_over) return;       /* the score is handled by the next tick */
+    savegame_save(&s_game);
+    enter_menu();
 }
 
 /* ── Entry points ───────────────────────────────────────────────────────── */
 
 void setup() {
 #if STACK_MEASURE
-    /* Paint free SRAM before any driver/game work; the pause screen
+    /* Paint free SRAM before any driver/game work; the credits screen
      * reports the low-water mark.  Release builds compile this out. */
     stack_measure_begin();
 #endif
@@ -234,8 +265,9 @@ void loop() {
                 } else if (btn == BTN_DOWN || btn == BTN_RIGHT) {
                     menu_navigate(1);
                 } else if (ev == BTN_EVENT_PRESS && btn == BTN_FIRE) {
-                    menu_item_t item = menu_selected();
-                    if (item == MENU_ITEM_NEW_GAME) start_game_from_settings();
+                    menu_item_t item = menu_item_at(menu_selected_index());
+                    if (item == MENU_ITEM_CONTINUE) continue_saved_game();
+                    else if (item == MENU_ITEM_NEW_GAME) start_game_from_settings();
                     else if (item == MENU_ITEM_SETTINGS) enter_settings();
                     else if (item == MENU_ITEM_HIGH_SCORES) enter_highscores_menu(
                         eeprom_get_settings()->mode == MODE_EXTREME ? HS_MODE_EXTREME : HS_MODE_CLASSIC);
@@ -294,29 +326,12 @@ void loop() {
         case SCREEN_GAME:
             if (ev == BTN_EVENT_PRESS) {
                 if (btn == BTN_PAUSE) {
-                    /* Enter pause overlay */
-                    pause_draw();
-                    while (true) {
-                        pause_action_t pa = pause_handle_input();
-                        if (pa == PAUSE_ACTION_RESUME) {
-                            s_paused = false;
-                            /* Full redraw to clear the pause grid overlay */
-                            playfield_draw_all(&s_game, &s_cache);
-                            hud_draw_bar();
-                            s_hud_score = 0xFFFFFFFFu;
-                            s_hud_bonus = -32768;
-                            s_hud_pu = 0xFF;
-                            hud_refresh();
-                            break;
-                        } else if (pa == PAUSE_ACTION_RESTART) {
-                            start_game_from_settings();
-                            break;
-                        } else if (pa == PAUSE_ACTION_MENU) {
-                            s_paused = false;
-                            show_menu();
-                            break;
-                        }
-                    }
+                    save_game_and_leave();
+                } else if (btn == BTN_FIRE && s_wait_start) {
+                    /* The Fire that starts a restored game must not also shoot the tongue. */
+                    s_wait_start = false;
+                    s_mask_fire = true;
+                    s_next_tick = millis() + FRAME_MS;
                 }
             }
             break;
@@ -329,7 +344,7 @@ void loop() {
         enter_menu();
     }
 
-    if (s_screen == SCREEN_GAME && !s_paused && (int32_t)(now - s_next_tick) >= 0) {
+    if (s_screen == SCREEN_GAME && !s_wait_start && (int32_t)(now - s_next_tick) >= 0) {
         s_next_tick += FRAME_MS;
         if ((int32_t)(now - s_next_tick) > 0) s_next_tick = now + FRAME_MS;   /* don't burst after a stall */
 
@@ -339,6 +354,10 @@ void loop() {
         if (raw & (1 << BTN_UP))    keys |= KEY_UP;
         if (raw & (1 << BTN_DOWN))  keys |= KEY_DOWN;
         if (raw & (1 << BTN_FIRE))  keys |= KEY_FIRE;
+        if (s_mask_fire) {
+            if (raw & (1 << BTN_FIRE)) keys &= (uint8_t)~KEY_FIRE;
+            else s_mask_fire = false;
+        }
 
         if (!s_game.game_over) {
             game_tick(&s_game, keys);

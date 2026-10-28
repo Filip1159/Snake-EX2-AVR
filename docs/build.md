@@ -72,7 +72,7 @@ sh test/host/run.sh
 - `tools/test_visual.py` — builds the stub-LCD renderer and compares the 128×160 frame with
   the independent asset preview and the documented layout mockup.
 - The native logic tests and oracle traces (movement, wrap, collision, food, score, portal,
-  power-ups, EEPROM CRC, menus, high scores, pause, rendering).
+  power-ups, EEPROM CRC, menus, high scores, saved game, rendering).
 
 The frame-budget check prints the pixel-count estimate at 4 MHz SPI:
 
@@ -200,7 +200,7 @@ make stack-measure-upload   # build and flash the debug image
 Alternatively, set `#define STACK_MEASURE 1` in `src/config.h` and rebuild normally.
 
 Play the longest game you care about (Extreme with a long snake, plus the menus), then
-pause or die. The pause screen shows:
+then open the credits screen (menu → Instructions). It shows:
 
 ```
 STACK FREE: NNNN

@@ -55,11 +55,11 @@ Build, flash, fuse, EEPROM and recovery details:
 |--------|------|-------|
 | Up / Down / Left / Right | Steer the snake | Navigate |
 | Fire | Tongue / confirm | Select / confirm |
-| Pause | Pause / back | Back |
+| Pause | Save and leave the game / back | Back |
 
 The game starts at the title screen, then the main menu. Classic mode lets you choose a maze
 and speed; the tongue works in both modes. Extreme mode is the endless score-gated campaign
-with power-ups, the portal and maze cycling. Pause offers Resume, Restart and Menu. The
+with power-ups, the portal and maze cycling. Back during a game saves it to EEPROM and returns to the menu; "Continue" there restores it and waits for Fire. The
 high-score table stores two scores for each mode (four entries total) in EEPROM.
 
 ## Buzzer mode
@@ -77,7 +77,7 @@ sequences non-blocking; the settings menu can mute sound.
 | `src/render/` | Dirty-cell playfield renderer, sprites, HUD, high scores, menus |
 | `src/drivers/` | ST7735, buttons, buzzer, EEPROM |
 | `src/assets/` | Generated maze/sprite/image/sound tables (do not hand-edit `*_gen.*`) |
-| `src/ui/` | Title, menu, settings, pause, credits, high scores |
+| `src/ui/` | Title, menu, settings, credits, high scores |
 | `tools/` | Asset extractor/converter/generator, golden and visual tests |
 | `test/host/` | Native test programs and stub HAL/Arduino layer |
 | `reference/` | Frozen original `d` resource, decompiled classes, screenshots |
@@ -99,7 +99,7 @@ hardware checklist.
   (level start, lights-out, death-blink transitions) are event-only and take about 109 ms at
   the 4 MHz SPI clock.
 - For the Q5 stack check, `make stack-measure` builds a debug image that shows
-  `STACK FREE: NNNN` on the pause screen; see `docs/build.md` §9.
+  `STACK FREE: NNNN` on the credits screen; see `docs/build.md` §9.
 - The original game's assets and decompiled code are included for preservation and
   interoperability research. Snake EX2 is a Nokia trademark; this is a non-commercial
   fan port.

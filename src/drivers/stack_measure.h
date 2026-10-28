@@ -4,7 +4,7 @@
  * At boot the AVR implementation fills the unused SRAM between `__bss_end`
  * and just below the current stack pointer with a marker byte.  The stack
  * grows downward, so a later scan from the bottom finds the deepest byte the
- * stack has touched.  The pause screen can display the free
+ * stack has touched.  The credits screen can display the free
  * margin in a debug build (`STACK_MEASURE=1`).
  */
 #ifndef DRIVERS_STACK_MEASURE_H

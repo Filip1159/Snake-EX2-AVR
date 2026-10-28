@@ -16,7 +16,8 @@ extern "C" {
 extern uint8_t s_map[483];
 extern game_t s_game;
 extern playfield_cache_t s_cache;
-extern bool s_paused;
+extern bool s_wait_start;
+extern bool s_mask_fire;
 extern bool s_over_shown;
 extern bool s_hs_checked;
 extern uint32_t s_next_tick;

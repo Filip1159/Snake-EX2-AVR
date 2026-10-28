@@ -301,7 +301,7 @@
 #define FEATURE_RESUME_SAVE   0   // set to 1 if it fits (D7)
 
 /** Q5 debug instrumentation: paint free SRAM at boot and show the stack
- *  high-water mark on the pause screen.  Release builds keep this 0. */
+ *  high-water mark on the credits screen.  Release builds keep this 0. */
 #ifndef STACK_MEASURE
 #define STACK_MEASURE 0
 #endif

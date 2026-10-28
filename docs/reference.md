@@ -195,7 +195,7 @@ Title/menu (U1):
   leaders, and a 20 px soft-key row with `Select`/`Exit`. The selected row is a
   full-width light-blue band with dark text, matching the reference screenshot.
   Up/Left selects the previous item, Down/Right the next (wrapping), Fire selects, and
-  Pause returns to the title. Selection moves repaint only the old and new rows;
+  Pause returns to the title. With a saved game a "Continue" row is added on top. Selection moves repaint only the old and new rows;
   the full menu is drawn only on entry (or after returning from an info screen).
   The status-bar clock is decorative because the port has no RTC.
 - `src/render/text.{h,cpp}` provides the shared fixed-pitch 5×7 font
@@ -238,17 +238,21 @@ High scores (U3):
 - `test/host/test_highscores.cpp` verifies qualification logic, score formatting with
   dashes for empty slots, and full-screen rendering.
 
-Pause and game over (U4):
-- `src/ui/pause.{h,cpp}` provides the pause overlay. When a game ends, the title screen
-  is shown with the final score (and two trophies for a new best) instead of a
-  separate game-over screen.
-  - Pause overlay: draws a subtle grid pattern (every other pixel) over the frozen
-    game, preserving the game state underneath. Options: Resume, Restart, Menu.
-    Up/Down selects, Fire confirms, Pause also resumes.
-  - Restart starts a new game with current settings; Menu returns to main menu.
-    Resume continues exactly where left off.
-- `test/host/test_pause.cpp` verifies the overlay uses a grid pattern (no
-  `fill_screen()` call).
+Saved game and game over (U4):
+- There is no pause overlay. Back (Pause) during a game stores the game in EEPROM
+  (`src/game/savegame.{h,cpp}`, offset 64: marker, `sizeof(game_t)`, payload length, CRC16,
+  then `game_t` without its unused snake tail and the transient occupancy bitmap) and opens
+  the main menu, where a "Continue" row now sits on top and is selected. A save is rejected
+  if the marker, struct size or CRC differ (torn write, other firmware layout).
+- Continue loads the snapshot (the maze buffer is reloaded from `game_t.maze`), consumes the
+  save and redraws the board. The game stays frozen until Fire is pressed; that Fire is masked
+  until it is released, so it does not shoot the tongue. Going Back again saves it anew.
+  New game leaves an existing save alone; a game that ends is never saved.
+- When a game ends, the title screen is shown with the final score (and two trophies for a
+  new best) instead of a separate game-over screen.
+- `test/host/test_savegame.cpp` covers the round trip, identical continued play, partial
+  payloads, corruption and size-mismatch rejection; `test_menu.cpp` the "Continue" row.
+- The Q5 stack readout of the debug build (`STACK_MEASURE`) is now drawn on the credits screen.
 
 Credits (replaces the original tutorial):
 - The main menu's "Instructions" item opens `src/ui/credits.{h,cpp}`: the menu wallpaper, status

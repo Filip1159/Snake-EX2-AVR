@@ -65,6 +65,9 @@ void eeprom_set_score(uint8_t index, uint32_t score);
 /** Compute CRC16 over a buffer. Used for validation/testing. */
 uint16_t eeprom_crc16(const uint8_t *data, uint16_t len);
 
+/** Continue a CRC16 over more data: start with 0xFFFF; eeprom_crc16(d, n) is one call. */
+uint16_t eeprom_crc16_update(uint16_t crc, const uint8_t *data, uint16_t len);
+
 #ifdef __cplusplus
 }
 #endif

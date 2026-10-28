@@ -83,6 +83,28 @@ static int changed_outside_rows(const uint16_t *a, const uint16_t *b,
     return bad;
 }
 
+static void continue_row_tests(void) {
+    /* With a saved game the main menu gets a "Continue" row on top. */
+    menu_set_continue(true);
+    menu_init();
+    CHECK(menu_selected_index() == 0 && menu_item_at(0) == MENU_ITEM_CONTINUE);
+    CHECK(menu_item_at(1) == MENU_ITEM_NEW_GAME && menu_item_at(4) == MENU_ITEM_INSTRUCTIONS);
+    CHECK(menu_index_of(MENU_ITEM_HIGH_SCORES) == 2 && menu_index_of(MENU_ITEM_CONTINUE) == 0);
+    CHECK(strcmp(menu_item_label(MENU_ITEM_CONTINUE), "Continue") == 0);
+    menu_draw();
+    CHECK(fb[30][0] == 0x0B35);                                 /* first row selected */
+    CHECK(non_wall(4, 30 + 4, 60, 10) > 20);                    /* "Continue" */
+    CHECK(non_wall(4, 110 + 4, 100, 10) > 20);                  /* 5th row: Instructions */
+    menu_move(-1);
+    CHECK(menu_selected_index() == 4);                          /* wraps over five rows */
+    /* The score list is unaffected by the extra row. */
+    menu_open(MENU_LIST_SCORES);
+    CHECK(menu_item_at(1) == 1 && menu_index_of((menu_item_t)1) == 1);
+    menu_set_continue(false);
+    menu_init();
+    CHECK(menu_item_at(0) == MENU_ITEM_NEW_GAME && menu_index_of(MENU_ITEM_SETTINGS) == 2);
+}
+
 int main() {
     CHECK(text_width("", 1) == 0);
     CHECK(text_width("A", 1) == 5);
@@ -287,6 +309,8 @@ int main() {
     menu_init();                                                   /* back to the main list */
     menu_draw();
     CHECK(fb[30][0] == 0x0B35 && count_color(100, 148, 24, 7, 0x0010) > 10);
+
+    continue_row_tests();
 
     printf(fails ? "menu/text: %d FAILED\n" : "menu/text: all passed\n", fails);
     return fails != 0;

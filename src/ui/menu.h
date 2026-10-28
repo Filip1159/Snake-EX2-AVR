@@ -10,6 +10,7 @@
 #define UI_MENU_H
 
 #include <stdint.h>
+#include <stdbool.h>
 
 #ifdef __cplusplus
 extern "C" {
@@ -20,7 +21,8 @@ typedef enum {
     MENU_ITEM_HIGH_SCORES,
     MENU_ITEM_SETTINGS,
     MENU_ITEM_INSTRUCTIONS,
-    MENU_ITEM_COUNT
+    MENU_ITEM_COUNT,
+    MENU_ITEM_CONTINUE          /* extra first row, only while a saved game exists */
 } menu_item_t;
 
 /** Which list the menu shows: the main menu or the Classic/Extreme choice for the
@@ -35,7 +37,14 @@ typedef enum {
 /** Make `list` the active list with its first row selected (draw it with menu_draw()). */
 void menu_open(menu_list_t list);
 
-/** Open the main menu with New game selected. */
+/** Show a "Continue" row at the top of the main menu from the next menu_open()/menu_init(). */
+void menu_set_continue(bool available);
+
+/** Item shown at row `index` of the main menu / row index of an item (honours "Continue"). */
+menu_item_t menu_item_at(uint8_t index);
+uint8_t menu_index_of(menu_item_t item);
+
+/** Open the main menu with its first row (Continue, else New game) selected. */
 void menu_init(void);
 
 /** Move the selection by delta, wrapping at both ends. */

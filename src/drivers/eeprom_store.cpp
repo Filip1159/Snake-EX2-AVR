@@ -10,7 +10,7 @@
  *   44   classic CRC16 (over 32..43)
  *   48   extreme high scores (3 x uint32)
  *   60   extreme CRC16 (over 48..59)
- *   64   resume slot (unused; also self-test scratch)
+ *   64   saved game (src/game/savegame.cpp, its own marker + CRC)
  *
  * Each block has its own CRC so a write only touches one block.
  * BACKLOG.MD §5 D5.
@@ -47,7 +47,10 @@ static const settings_t DEFAULT_SETTINGS = {
 };
 
 uint16_t eeprom_crc16(const uint8_t *data, uint16_t len) {
-    uint16_t crc = 0xFFFF;
+    return eeprom_crc16_update(0xFFFF, data, len);
+}
+
+uint16_t eeprom_crc16_update(uint16_t crc, const uint8_t *data, uint16_t len) {
     for (uint16_t i = 0; i < len; i++) {
         crc ^= (uint16_t)data[i] << 8;
         for (uint8_t j = 0; j < 8; j++) {

@@ -45,7 +45,7 @@ fuses-read:
 	  -U lfuse:r:-:h -U hfuse:r:-:h -U efuse:r:-:h
 
 # Q5: build/upload a debug image that shows "STACK FREE: NNNN" on the
-# pause screen.  Use `make firmware`/`make upload` afterwards
+# credits screen.  Use `make firmware`/`make upload` afterwards
 # to restore the release image.
 stack-measure:
 	PLATFORMIO_BUILD_FLAGS="-DSTACK_MEASURE=1" pio run -e ATmega644PA
