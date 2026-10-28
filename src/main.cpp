@@ -136,12 +136,25 @@ static void enter_info(menu_item_t item) {
     s_screen = SCREEN_INFO;
 }
 
-static void enter_highscores(void) {
-    /* Called from menu: show high scores for the current game mode */
-    hs_mode_t mode = (eeprom_get_settings()->mode == MODE_EXTREME)
-                     ? HS_MODE_EXTREME : HS_MODE_CLASSIC;
+/* High scores: main menu -> Classic/Extreme list -> top-3 view. */
+static void enter_highscores_menu(uint8_t selected) {
+    menu_open(MENU_LIST_SCORES);
+    menu_move((int8_t)selected);
+    menu_draw();
+    s_screen = SCREEN_HIGHSCORES_MENU;
+}
+
+static void enter_highscores(hs_mode_t mode) {
     highscores_show(mode);
     s_screen = SCREEN_HIGHSCORES;
+}
+
+/* Back from the Classic/Extreme list: main menu with High scores highlighted. */
+static void leave_highscores_menu(void) {
+    menu_init();
+    menu_move(MENU_ITEM_HIGH_SCORES);
+    menu_draw();
+    s_screen = SCREEN_MENU;
 }
 
 static void enter_settings(void) {
@@ -255,7 +268,8 @@ void loop() {
                     menu_item_t item = menu_selected();
                     if (item == MENU_ITEM_NEW_GAME) start_game_from_settings();
                     else if (item == MENU_ITEM_SETTINGS) enter_settings();
-                    else if (item == MENU_ITEM_HIGH_SCORES) enter_highscores();
+                    else if (item == MENU_ITEM_HIGH_SCORES) enter_highscores_menu(
+                        eeprom_get_settings()->mode == MODE_EXTREME ? HS_MODE_EXTREME : HS_MODE_CLASSIC);
                     else if (item == MENU_ITEM_INSTRUCTIONS) enter_instructions();
                     else enter_info(item);
                 } else if (ev == BTN_EVENT_PRESS && btn == BTN_PAUSE) {
@@ -288,9 +302,23 @@ void loop() {
             }
             break;
 
+        case SCREEN_HIGHSCORES_MENU:
+            if (ev == BTN_EVENT_PRESS || ev == BTN_EVENT_REPEAT) {
+                if (btn == BTN_UP || btn == BTN_LEFT) {
+                    menu_navigate(-1);
+                } else if (btn == BTN_DOWN || btn == BTN_RIGHT) {
+                    menu_navigate(1);
+                } else if (ev == BTN_EVENT_PRESS && btn == BTN_FIRE) {
+                    enter_highscores((hs_mode_t)menu_selected_index());
+                } else if (ev == BTN_EVENT_PRESS && btn == BTN_PAUSE) {
+                    leave_highscores_menu();
+                }
+            }
+            break;
+
         case SCREEN_HIGHSCORES:
             if (ev == BTN_EVENT_PRESS && (btn == BTN_FIRE || btn == BTN_PAUSE)) {
-                show_menu();
+                enter_highscores_menu(menu_selected_index());   /* back to the Classic/Extreme list */
             }
             break;
 
@@ -373,7 +401,7 @@ void loop() {
             /* Game just ended: save the score, then the title screen with the score */
             s_over_shown = true;
             /* The table's first slot of the mode, read before it is saved. */
-            bool new_best = s_game.score > eeprom_get_score(s_game.extreme ? 2 : 0);
+            bool new_best = s_game.score > eeprom_get_score(s_game.extreme ? SCORES_PER_MODE : 0);
             if (!s_hs_checked) {
                 s_hs_checked = true;
                 highscores_submit(s_game.score, s_game.extreme);

@@ -33,7 +33,8 @@ typedef struct {
 
 /* ── High scores ────────────────────────────────────────────────────────── */
 
-#define HIGH_SCORE_COUNT  4   // 2 classic + 2 extreme
+#define SCORES_PER_MODE   3   // top 3 per mode
+#define HIGH_SCORE_COUNT  (2 * SCORES_PER_MODE)   // classic 0..2, extreme 3..5
 #define CRC16_POLY        0x1021  // CCITT
 
 /* ── API ────────────────────────────────────────────────────────────────── */
@@ -57,7 +58,7 @@ bool eeprom_load_scores(void);
 /** Save high scores to EEPROM. */
 void eeprom_save_scores(void);
 
-/** Get/set an individual score. index 0..3. */
+/** Get/set an individual score. index 0..5 (mode * SCORES_PER_MODE + rank). */
 uint32_t eeprom_get_score(uint8_t index);
 void eeprom_set_score(uint8_t index, uint32_t score);
 

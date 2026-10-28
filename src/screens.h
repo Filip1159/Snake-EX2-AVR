@@ -13,7 +13,8 @@ typedef enum {
     SCREEN_MENU,
     SCREEN_INFO,
     SCREEN_SETTINGS,
-    SCREEN_HIGHSCORES,
+    SCREEN_HIGHSCORES_MENU,   /* Classic / Extreme list */
+    SCREEN_HIGHSCORES,        /* the top-3 view */
     SCREEN_INSTRUCTIONS,
     SCREEN_GAME,
 } screen_t;

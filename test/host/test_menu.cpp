@@ -264,6 +264,30 @@ int main() {
     CHECK(changed_outside_rows(&before[0][0], &incremental[0][0],
                                MENU_ITEM_NEW_GAME, MENU_ITEM_INSTRUCTIONS) == 0);
 
+    /* Classic/Extreme list: two rows, "Back" soft key, thumb is half of the track */
+    menu_open(MENU_LIST_SCORES);
+    CHECK(menu_selected_index() == 0);
+    menu_draw();
+    CHECK(fb[30][0] == 0x0B35 && fb[49][0] == 0x01AF);          /* selected band */
+    CHECK(fb[50][0] == wall[50][0] && fb[90][0] == wall[90][0]); /* second row unselected, rest empty */
+    CHECK(count_color(4, 54, 110, 10, 0x0000) > 20);              /* "Extreme" */
+    CHECK(count_color(100, 148, 24, 7, 0x0010) > 10);             /* "Back", not "Exit" */
+    {
+        int bright = 0;
+        for (int y = 30; y < 146; y++) if (fb[y][121] == 0xFFFF) bright++;
+        CHECK(bright == 58);
+    }
+    menu_move(1);
+    menu_draw_item(MENU_ITEM_NEW_GAME);
+    menu_draw_item(MENU_ITEM_HIGH_SCORES);
+    CHECK(menu_selected_index() == 1 && fb[50][0] == 0x0B35 && fb[30][0] == wall[30][0]);
+    CHECK(fb[88][121] == 0xFFFF && fb[145][121] == 0xFFFF && fb[87][122] == 0x21B2 && fb[30][121] == wall[30][121]);
+    menu_move(1);                                                  /* wraps to Classic */
+    CHECK(menu_selected_index() == 0);
+    menu_init();                                                   /* back to the main list */
+    menu_draw();
+    CHECK(fb[30][0] == 0x0B35 && count_color(100, 148, 24, 7, 0x0010) > 10);
+
     printf(fails ? "menu/text: %d FAILED\n" : "menu/text: all passed\n", fails);
     return fails != 0;
 }

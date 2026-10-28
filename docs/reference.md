@@ -221,13 +221,18 @@ Settings (U2):
   maze cycling, and partial row repaint without `fill_screen()`.
 
 High scores (U3):
-- `src/ui/highscores.{h,cpp}` draws a full 128×160 table with two score rows per mode
-  (Classic indices 0/1, Extreme indices 2/3). Ranks show `#1.`, `#2.` with six-digit
-  scores or `------` for empty slots. The table is opened from the main menu's "High
-  scores" item for the current mode.
-- Game over: when a game ends and the score beats either stored entry for that mode,
+- Navigation: main menu → "High scores" → a Classic/Extreme list (the main menu's list
+  component with a "Back" soft key, `menu_open(MENU_LIST_SCORES)`) → the top-3 view.
+  Pause/Fire in the view returns to the list; Pause in the list returns to the main menu.
+- `src/ui/highscores.{h,cpp}` draws the view over the shared S40 chrome
+  (`src/ui/chrome.{h,cpp}`: wallpaper, status bar, "Snake EX2" title row with the mode name
+  at the right, "Back" soft key): three score frames with six-digit scores (dashes for
+  empty slots) and the two medals beside the best. Classic uses EEPROM scores 0..2,
+  Extreme 3..5 (`SCORES_PER_MODE` = 3; blocks at 32 and 48, CRCs at 44 and 60 — an older
+  2-score layout fails its CRC and the table starts empty).
+- Game over: when a game ends and the score beats the 3rd stored entry for that mode,
   it is saved straight away via `highscores_submit()` (no entry screen, no initials,
-  like the original) and the lower score is shifted down if needed. The title screen
+  like the original) and the lower scores are shifted down. The title screen
   then shows the final score, with two trophies for a new best.
 - `test/host/test_highscores.cpp` verifies qualification logic, score formatting with
   dashes for empty slots, and full-screen rendering.
