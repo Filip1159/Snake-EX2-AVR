@@ -20,8 +20,8 @@
 #define TFT_HEIGHT 160
 
 /** Panel variant offsets (set per actual module; defaults for common variant). */
-#define TFT_OFFSET_X  0  // adjust after color-bar test (M1/H2)
-#define TFT_OFFSET_Y  0
+#define TFT_OFFSET_X  2  // "green tab" ST7735: 132x162 GRAM, visible 128x160 starts at (2,1)
+#define TFT_OFFSET_Y  1  // (0,0 shows the picture shifted up-left with noise on the last row/columns)
 #define TFT_BGR       0  // 0=RGB, 1=BGR — set after color-bar test
 #define TFT_INVERT    0  // set after color-bar test
 

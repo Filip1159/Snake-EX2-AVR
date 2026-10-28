@@ -1,8 +1,7 @@
-/* Host test: high scores table and entry logic. */
+/* Host test: high scores table and saving logic. */
 #include "ui/highscores.h"
 #include "render/text.h"
 #include "drivers/st7735.h"
-#include "drivers/buttons.h"
 #include "drivers/buzzer.h"
 #include "drivers/eeprom_store.h"
 #include "Arduino.h"
@@ -14,7 +13,7 @@ uint8_t mock_eeprom[1024];
 unsigned mock_eeprom_writes;
 uint32_t mock_millis = 0;
 
-/* Mock buzzer functions called by highscores_maybe_enter. */
+/* Mock buzzer functions called by highscores_submit. */
 static uint8_t mock_play_id;
 static int     mock_play_count;
 extern "C" void buzzer_init(void) {}
@@ -22,20 +21,6 @@ extern "C" void buzzer_play(uint8_t id) { mock_play_id = id; mock_play_count++; 
 extern "C" void buzzer_stop(void) {}
 extern "C" bool buzzer_is_playing(void) { return false; }
 extern "C" void buzzer_update(void) { }
-
-/* Mock button functions called by highscores_maybe_enter.  A pending FIRE
- * press lets the entry loop save and return immediately. */
-static int mock_fire_pending;
-extern "C" uint8_t buttons_poll(void) { return 0; }
-extern "C" btn_event_t buttons_get_event(uint8_t *idx) {
-    if (mock_fire_pending) {
-        mock_fire_pending = 0;
-        if (idx) *idx = BTN_FIRE;
-        return BTN_EVENT_PRESS;
-    }
-    return BTN_EVENT_NONE;
-}
-extern "C" bool buttons_is_pressed(uint8_t btn) { (void)btn; return false; }
 
 static uint16_t fb[160][128];
 static int fill_screen_calls;
@@ -138,19 +123,17 @@ int main() {
     CHECK(count_color(39, 21, 48, 9, 0x0000) > 20);  /* six dashes, row 1 */
     CHECK(count_color(39, 96, 48, 9, 0x0000) > 20);  /* six dashes, row 2 */
 
-    /* High-score entry requests SFX 11, gated by the sound setting. */
-    mock_fire_pending = 1;
+    /* Saving a qualifying score requests SFX 11, gated by the sound setting. */
     mock_play_count = 0;
-    CHECK(highscores_maybe_enter(100, false));
+    CHECK(highscores_submit(100, false));
     CHECK(mock_play_count == 1);
     CHECK(mock_play_id == SFX_HIGH_SCORE);
 
     settings_t st = *eeprom_get_settings();
     st.sound_on = false;
     eeprom_save_settings(&st);
-    mock_fire_pending = 1;
     mock_play_count = 0;
-    CHECK(highscores_maybe_enter(100, false));
+    CHECK(highscores_submit(100, false));
     CHECK(mock_play_count == 0);
     st.sound_on = true;
     eeprom_save_settings(&st);

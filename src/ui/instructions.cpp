@@ -416,7 +416,7 @@ static void demo_run_lights_out(void) {
 }
 
 static void demo_run_highscore(void) {
-    /* Demo -8: High score demo. Play a game and show score entry. */
+    /* Demo -8: High score demo. Play a game and save its score. */
     game_init_classic(&s_game, 5, -1, NULL); // No maze, fast
     s_game.extreme = false;
 
@@ -441,8 +441,8 @@ static void demo_run_highscore(void) {
         demo_delay(FRAME_MS);
     }
 
-    if (s_game.game_over && highscores_qualifies(s_game.score, s_game.extreme)) {
-        highscores_maybe_enter(s_game.score, s_game.extreme);
+    if (s_game.game_over) {
+        highscores_submit(s_game.score, s_game.extreme);
     }
     demo_delay(2000);
 }

@@ -190,13 +190,15 @@ Then read them back and confirm `E2 D7 FD` (internal RC) or `F7 D7 FD` (external
 
 ## 7. Display configuration
 
-The firmware assumes a common ST7735 128×160 panel with offsets `(0,0)`, RGB order and no
-inversion. If the image is shifted or the colours are wrong, adjust the following in
-`src/config.h` and rebuild:
+The firmware assumes a common ST7735 128×160 panel whose visible area starts at
+GRAM `(2,1)` (the common "green tab" modules: 132×162 GRAM), RGB order and no inversion.
+If the image is shifted or the colours are wrong, adjust the following in
+`src/config.h` and rebuild. Symptom of a wrong offset: the picture sits too far up-left
+with a row/columns of random pixels at the bottom/right; "red tab" modules need `(0,0)`.
 
 ```c
-#define TFT_OFFSET_X  0
-#define TFT_OFFSET_Y  0
+#define TFT_OFFSET_X  2
+#define TFT_OFFSET_Y  1
 #define TFT_BGR       0   // 1 = BGR
 #define TFT_INVERT    0   // 1 = invert
 ```

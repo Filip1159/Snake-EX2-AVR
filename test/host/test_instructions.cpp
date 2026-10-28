@@ -89,7 +89,7 @@ void hud_refresh(void) {}
 bool highscores_qualifies(uint32_t score, bool extreme) {
     (void)score; (void)extreme; return false;
 }
-bool highscores_maybe_enter(uint32_t score, bool extreme) {
+bool highscores_submit(uint32_t score, bool extreme) {
     (void)score; (void)extreme; return false;
 }
 }

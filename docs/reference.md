@@ -225,11 +225,10 @@ High scores (U3):
   (Classic indices 0/1, Extreme indices 2/3). Ranks show `#1.`, `#2.` with six-digit
   scores or `------` for empty slots. The table is opened from the main menu's "High
   scores" item for the current mode.
-- Game-over entry: when a game ends and the score beats either stored entry for that
-  mode, an entry screen appears. The player edits three initials (A–Z) using Left/Right
-  to cycle the character and Up/Down to move between positions; Fire saves. The score
-  is inserted into the correct rank via `eeprom_set_score()` (shifting the lower score
-  down if needed). The original game had no initials; this is a Tier-B reconstruction.
+- Game over: when a game ends and the score beats either stored entry for that mode,
+  it is saved straight away via `highscores_submit()` (no entry screen, no initials,
+  like the original) and the lower score is shifted down if needed. The title screen
+  then shows the final score, with two trophies for a new best.
 - `test/host/test_highscores.cpp` verifies qualification logic, score formatting with
   dashes for empty slots, and full-screen rendering.
 
@@ -261,7 +260,7 @@ Instructions/tutorial (U5):
     - -5 Ghost: Extreme/Box/speed 2, forces wall-ghost power-up
     - -6 Coin Rush: Extreme/Box/speed 2, forces coin rush with coins spawned
     - -7 Lights Out: Extreme/Box/speed 2, forces lights-out effect
-    - -8 High Score: Classic/No maze/speed 5, auto-plays to get score, shows entry
+    - -8 High Score: Classic/No maze/speed 5, auto-plays to get score, saves its score
   - Each demo initializes the game, sets the relevant state, runs for several
     seconds, and returns to the demo menu.
   - Input ownership: `main.cpp` owns the button event queue and passes the

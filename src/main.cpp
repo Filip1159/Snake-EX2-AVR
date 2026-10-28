@@ -56,7 +56,7 @@ game_t            s_game;
 playfield_cache_t s_cache;
 bool              s_paused;
 bool              s_over_shown;
-bool              s_hs_checked;      /* high-score entry handled for this game */
+bool              s_hs_checked;      /* score saved for this game */
 uint32_t          s_next_tick;
 uint32_t          s_hud_score;
 int16_t           s_hud_bonus;
@@ -370,13 +370,13 @@ void loop() {
             }
             hud_refresh();
         } else if (!s_over_shown) {
-            /* Game just ended: high-score entry, then the title screen with the score */
+            /* Game just ended: save the score, then the title screen with the score */
             s_over_shown = true;
-            /* The table's first slot of the mode, read before an entry can change it. */
+            /* The table's first slot of the mode, read before it is saved. */
             bool new_best = s_game.score > eeprom_get_score(s_game.extreme ? 2 : 0);
-            if (!s_hs_checked && highscores_qualifies(s_game.score, s_game.extreme)) {
+            if (!s_hs_checked) {
                 s_hs_checked = true;
-                highscores_maybe_enter(s_game.score, s_game.extreme);
+                highscores_submit(s_game.score, s_game.extreme);
             }
             enter_title_score(s_game.score, new_best);
         }
