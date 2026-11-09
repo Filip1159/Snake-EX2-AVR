@@ -31,6 +31,15 @@
 #define LCD_RST  PB2
 #define LCD_BL   PC1
 
+/* ── Battery ─────────────────────────────────────────────────────────────── */
+/** One Li-ion cell powers the MCU directly, so VCC (measured against the internal 1.1 V
+ *  bandgap) is the cell voltage. Linear map between empty and full. */
+#define BATTERY_FULL_MV      4200
+#define BATTERY_EMPTY_MV     3300
+#define BATTERY_BANDGAP_MV   1100   // ATmega644PA typ. (1.0–1.2 V); calibrate per chip
+#define BATTERY_LOW_PERCENT  20     // below this the status bar battery turns red
+#define BATTERY_POLL_MS      10000UL
+
 /* ── Geometry ────────────────────────────────────────────────────────────── */
 /** Derived 128×160 layout. BACKLOG.MD §1.5.
  *

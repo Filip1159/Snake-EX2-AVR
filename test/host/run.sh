@@ -13,6 +13,7 @@ if [ ! -f src/assets/sounds_gen.cpp ] || [ ! -f src/assets/sounds_gen.h ]; then
     python3 tools/gen_sounds.py
 fi
 g++ $F test/host/test_buzzer.cpp src/drivers/buzzer.cpp src/assets/sounds_gen.cpp -o $OUT/t_buzzer && $OUT/t_buzzer
+g++ $F test/host/test_battery.cpp src/drivers/battery.cpp -o $OUT/t_battery && $OUT/t_battery
 g++ $F test/host/test_stack_measure.cpp src/drivers/stack_measure.cpp -o $OUT/t_stack && $OUT/t_stack
 [ -f build/assets/mazes_21x23.bin ] && [ -f build/assets/preview/screen_128x160_maze0.png ] || { python3 tools/extract_snake_ex2.py && python3 tools/convert_assets.py; }
 # Q3: host-rendered 128x160 frame vs the independent preview and layout mockup.

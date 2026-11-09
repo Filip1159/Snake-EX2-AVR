@@ -8,6 +8,7 @@
 #include "assets/wallpaper.h"
 #include "assets/statusbar.h"
 #include "drivers/st7735.h"
+#include "config.h"
 #include <string.h>
 
 #define CHROME_RIGHT_EDGE 123          /* right-aligned title text ends here */
@@ -38,13 +39,43 @@ void chrome_restore(uint8_t x, uint8_t w, uint8_t y, uint8_t h) {
     else        img_draw_rect(0, 0, &IMG_WALLPAPER, x, y, w, h);
 }
 
-static bool s_silent;
+static bool    s_silent;
+static uint8_t s_battery = 100;            /* percent shown by the battery icon */
 
 #define SILENT_W 36
 #define SILENT_H 12
 
+/* The battery is drawn in code (the sprite's copy is clipped out) so it can show the level:
+ * columns [BATT_X0, BATT_X1) of the bar, a 4-segment gauge, red below BATTERY_LOW_PERCENT. */
+#define BATT_X0          31
+#define BATT_X1          47
+#define BATT_Y           1
+#define BATT_H           12
+#define BATT_SEGMENTS    4
+#define BATT_OUTLINE     0xBE3D
+#define BATT_FILL        0x3C8C
+#define BATT_LOW         0xD16A            /* the red of the muted-note icon */
+
+static void draw_battery(void) {
+    bool low = s_battery < BATTERY_LOW_PERCENT;
+    uint16_t edge = low ? BATT_LOW : BATT_OUTLINE, fill = low ? BATT_LOW : BATT_FILL;
+    st7735_fill_rect(33, 3, 11, 1, edge);                /* body outline, tip at the right */
+    st7735_fill_rect(33, 11, 11, 1, edge);
+    st7735_fill_rect(33, 3, 1, 9, edge);
+    st7735_fill_rect(43, 3, 1, 9, edge);
+    st7735_fill_rect(44, 5, 2, 5, edge);
+    uint8_t lit = (uint8_t)((s_battery * BATT_SEGMENTS + 99) / 100);   /* 1..100 % lights >= 1 */
+    for (uint8_t i = 0; i < lit && i < BATT_SEGMENTS; i++)
+        st7735_fill_rect((uint8_t)(35 + 2 * i), 5, 2, 5, fill);
+}
+
 void chrome_draw_status_bar(void) {
+    sprite_set_clip(0, 0, BATT_X0, 160);
     sprite_draw_p(STATUSBAR_X, STATUSBAR_Y, &SPR_STATUSBAR);
+    sprite_set_clip(BATT_X1, 0, CHROME_W, 160);
+    sprite_draw_p(STATUSBAR_X, STATUSBAR_Y, &SPR_STATUSBAR);
+    sprite_reset_clip();
+    draw_battery();
     if (s_silent) sprite_draw_p(SILENT_X, SILENT_Y, &SPR_SILENT);
 }
 
@@ -55,6 +86,18 @@ void chrome_set_silent(bool silent) {
     /* only the label's area of the bar changes */
     chrome_restore(SILENT_X, SILENT_W, SILENT_Y, SILENT_H);
     if (s_silent) sprite_draw_p(SILENT_X, SILENT_Y, &SPR_SILENT);
+}
+
+void chrome_set_battery(uint8_t percent) {
+    if (percent > 100) percent = 100;
+    if (percent == s_battery) return;
+    bool recolor = (percent < BATTERY_LOW_PERCENT) != (s_battery < BATTERY_LOW_PERCENT);
+    uint8_t old_lit = (uint8_t)((s_battery * BATT_SEGMENTS + 99) / 100);
+    s_battery = percent;
+    if (!s_ready) return;
+    if (!recolor && old_lit == (uint8_t)((percent * BATT_SEGMENTS + 99) / 100)) return;
+    chrome_restore(BATT_X0, BATT_X1 - BATT_X0, BATT_Y, BATT_H);
+    draw_battery();
 }
 
 void chrome_begin(void (*erase)(void)) {

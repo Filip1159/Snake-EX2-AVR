@@ -22,10 +22,12 @@
 #include "hal/gpio.h"
 #include "drivers/st7735.h"
 #include "drivers/buttons.h"
+#include "drivers/battery.h"
 #include "drivers/buzzer.h"
 #include "drivers/eeprom_store.h"
 #include "drivers/stack_measure.h"
 #include "app/screens.h"
+#include "ui/chrome.h"
 
 void setup() {
 #if STACK_MEASURE
@@ -53,6 +55,7 @@ void setup() {
 
     st7735_backlight(eeprom_get_settings()->backlight);
     screen_sync_silent();
+    chrome_set_battery(battery_percent(battery_read_mv()));
     screen_title_open();
 }
 
@@ -64,6 +67,12 @@ void loop() {
     while ((ev = buttons_get_event(&btn)) != BTN_EVENT_NONE) screen_on_button(btn, ev);
 
     screen_tick(millis(), raw);
+
+    static uint32_t next_battery_ms = BATTERY_POLL_MS;
+    if ((int32_t)(millis() - next_battery_ms) >= 0) {
+        next_battery_ms += BATTERY_POLL_MS;
+        chrome_set_battery(battery_percent(battery_read_mv()));
+    }
 
     if (buzzer_is_playing()) buzzer_update();
     delay(2);

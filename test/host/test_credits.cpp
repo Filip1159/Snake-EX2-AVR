@@ -50,6 +50,17 @@ int main() {
     CHECK(dark_count(96, 1, 32, 12) > 25);               /* the clock stays */
     chrome_set_silent(false);
 
+    /* The battery icon is red below BATTERY_LOW_PERCENT and not above it. */
+    chrome_set_battery(100);
+    credits_draw();
+    CHECK(reds(31, 1, 16, 12) == 0);
+    chrome_set_battery(19);
+    credits_draw();
+    CHECK(reds(31, 1, 16, 12) > 20);
+    chrome_set_battery(20);                              /* live repaint back to normal */
+    CHECK(reds(31, 1, 16, 12) == 0);
+    chrome_set_battery(100);
+
     printf(fails ? "credits: %d FAILED\n" : "credits: all passed\n", fails);
     return fails != 0;
 }

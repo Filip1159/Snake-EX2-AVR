@@ -55,6 +55,9 @@ void chrome_restore(uint8_t x, uint8_t w, uint8_t y, uint8_t h);
 void chrome_set_silent(bool silent);
 void chrome_draw_status_bar(void);
 
+/** Battery icon level, 0..100 %: a 4-segment gauge, drawn red below BATTERY_LOW_PERCENT. */
+void chrome_set_battery(uint8_t percent);
+
 /** Title row: `title` at the left and an optional one-character `right` text right-aligned
  *  (the list index). Only the text that changed since the last call is erased and redrawn. */
 void chrome_draw_title(const char *title, const char *right);
