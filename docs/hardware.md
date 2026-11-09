@@ -6,36 +6,36 @@ ATmega32/16 MHz plan in `BACKLOG.MD` §2. The current build is:
 - **MCU:** ATmega644PA-PU, DIP-40, 5 V, 8 MHz (internal RC as built; an external 8 MHz crystal is optional)
 - **Display:** ST7735 128×160 SPI LCD (3.3 V logic)
 - **Input:** six active-low tactile buttons on PA0–PA5
-- **Sound:** one active buzzer on PB0 (passive piezo supported in firmware)
+- **Sound:** one active buzzer on PD6 (passive piezo supported in firmware)
 - **Storage:** none — all assets live in flash; there is no SD card
 - **Programming:** USBasp through a 6-pin ISP header
 
 ## 1. Pin table (ATmega644PA DIP-40)
 
-| Pin | Port | Signal | Direction | Notes |
-|----:|------|--------|-----------|-------|
-| 1 | PB0 | Buzzer | out | Active buzzer or passive piezo; drive through an NPN transistor |
-| 3 | PB2 | LCD_RST | out | ST7735 reset (active low) |
-| 4 | PB3 | LCD_DC | out | ST7735 data/command select |
-| 5 | PB4 | LCD_CS | out | ST7735 chip select (active low) |
-| 6 | PB5 | LCD_MOSI | out | Hardware SPI MOSI |
-| 7 | PB6 | LCD_MISO | in | Not read by the write-only driver; optional |
-| 8 | PB7 | LCD_SCK | out | Hardware SPI clock (F_CPU/2 = 4 MHz) |
+| Pin | Port  | Signal | Direction | Notes |
+|----:|-------|--------|-----------|-------|
+| 1 | PD6   | Buzzer | out | Active buzzer or passive piezo; drive through an NPN transistor |
+| 3 | PB2   | LCD_RST | out | ST7735 reset (active low) |
+| 4 | PB3   | LCD_DC | out | ST7735 data/command select |
+| 5 | PB4   | LCD_CS | out | ST7735 chip select (active low) |
+| 6 | PB5   | LCD_MOSI | out | Hardware SPI MOSI |
+| 7 | PB6   | LCD_MISO | in | Not read by the write-only driver; optional |
+| 8 | PB7   | LCD_SCK | out | Hardware SPI clock (F_CPU/2 = 4 MHz) |
 | 9 | RESET | RESET | in | 10 kΩ to 5 V; ISP RESET; optional 100 nF to GND |
-| 10 | VCC | 5 V | power | 100 nF decoupling |
-| 11 | GND | GND | power | |
+| 10 | VCC   | 5 V | power | 100 nF decoupling |
+| 11 | GND   | GND | power | |
 | 12 | XTAL2 | Crystal | — | Optional 8 MHz crystal; 22 pF to GND (not fitted on the internal-RC build) |
 | 13 | XTAL1 | Crystal | — | Optional 8 MHz crystal; 22 pF to GND |
-| 23 | PC1 | LCD_BL | out | Backlight enable; use a transistor, not the LED directly |
-| 30 | AVCC | 5 V | power | 100 nF decoupling |
-| 31 | GND | GND | power | |
-| 32 | AREF | AREF | — | 100 nF to GND (ADC unused) |
-| 35 | PA5 | BTN_PAUSE | in | Pause / back; internal pull-up, button to GND |
-| 36 | PA4 | BTN_FIRE | in | Tongue / confirm; internal pull-up, button to GND |
-| 37 | PA3 | BTN_RIGHT | in | Internal pull-up, button to GND |
-| 38 | PA2 | BTN_LEFT | in | Internal pull-up, button to GND |
-| 39 | PA1 | BTN_DOWN | in | Internal pull-up, button to GND |
-| 40 | PA0 | BTN_UP | in | Internal pull-up, button to GND |
+| 23 | PC1   | LCD_BL | out | Backlight enable; use a transistor, not the LED directly |
+| 30 | AVCC  | 5 V | power | 100 nF decoupling |
+| 31 | GND   | GND | power | |
+| 32 | AREF  | AREF | — | 100 nF to GND (ADC unused) |
+| 35 | PA5   | BTN_PAUSE | in | Pause / back; internal pull-up, button to GND |
+| 36 | PA4   | BTN_FIRE | in | Tongue / confirm; internal pull-up, button to GND |
+| 37 | PA3   | BTN_RIGHT | in | Internal pull-up, button to GND |
+| 38 | PA2   | BTN_LEFT | in | Internal pull-up, button to GND |
+| 39 | PA1   | BTN_DOWN | in | Internal pull-up, button to GND |
+| 40 | PA0   | BTN_UP | in | Internal pull-up, button to GND |
 
 Spare pins: PB1 (2), PD0–PD7 (14–21), PC0 (22), PC2–PC5 (24–27), PC6/PC7 (28–29),
 PA6/PA7 (33–34). **PC2–PC5 are JTAG pins**; the recommended high fuse disables JTAG so
@@ -93,9 +93,8 @@ jumpered for 5 V and the board is not otherwise powered.
 - **Backlight:** drive the module's `LED`/`BL` pin through an NPN transistor (PC1 → 1 kΩ
   base, emitter to GND, collector to the LED cathode; LED anode to 3.3 V through the
   module's resistor). Do not sink the backlight current directly into PC1.
-- **Buzzer:** PB0 → 1 kΩ → NPN base; active buzzer between 5 V and the collector. Add a
-  1N4148 across a magnetic buzzer (cathode to 5 V). A small piezo can be driven directly
-  from PB0 with a series resistor, but the transistor is safer.
+- **Buzzer:** PD6 → 47 Ω → active buzzer. A small piezo can be driven directly
+  from PD6 with a series resistor
 - **Buttons:** connect each PA0–PA5 pin to GND through a tactile switch. The firmware
   enables the internal pull-ups. Optional 100 nF from each pin to GND improves debounce;
   the firmware also debounces for 20 ms.

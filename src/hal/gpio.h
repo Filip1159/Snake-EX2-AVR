@@ -21,8 +21,8 @@ static inline void lcd_dc_low(void)   { PORTB &= ~(1 << PB3); }
 static inline void lcd_dc_high(void)  { PORTB |=  (1 << PB3); }
 static inline void lcd_rst_low(void)  { PORTB &= ~(1 << PB2); }
 static inline void lcd_rst_high(void) { PORTB |=  (1 << PB2); }
-static inline void buzzer_on(void)    { PORTB |=  (1 << PB0); }
-static inline void buzzer_off(void)   { PORTB &= ~(1 << PB0); }
+static inline void buzzer_on(void)    { PORTD |=  (1 << PD6); }
+static inline void buzzer_off(void)   { PORTD &= ~(1 << PD6); }
 static inline void lcd_bl_on(void)    { PORTC |=  (1 << PC1); }
 static inline void lcd_bl_off(void)   { PORTC &= ~(1 << PC1); }
 

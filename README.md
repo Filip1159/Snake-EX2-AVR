@@ -12,13 +12,13 @@ effects.
 
 ## Hardware
 
-| Part | Notes |
-|------|-------|
+| Part | Notes                                                                                                       |
+|------|-------------------------------------------------------------------------------------------------------------|
 | ATmega644PA-PU | DIP-40, 5 V, 8 MHz (internal RC as built; external crystal optional), 64 KB flash / 4 KB SRAM / 1 KB EEPROM |
-| ST7735 128×160 SPI LCD | 3.3 V logic; level-shift the 5 V MCU outputs |
-| 6 tactile buttons | PA0–PA5, active low, internal pull-ups |
-| Active buzzer or passive piezo | PB0; passive mode uses Timer2 |
-| USBasp | 6-pin ISP header |
+| ST7735 128×160 SPI LCD | 3.3 V logic; level-shift the 5 V MCU outputs                                                                |
+| 6 tactile buttons | PA0–PA5, active low, internal pull-ups                                                                      |
+| Active buzzer or passive piezo | PD6; passive mode uses Timer2                                                                               |
+| USBasp | 6-pin ISP header                                                                                            |
 
 Full pin table, BOM, power/level-shifting notes, fuse values and USBasp wiring:
 [`docs/hardware.md`](docs/hardware.md).
