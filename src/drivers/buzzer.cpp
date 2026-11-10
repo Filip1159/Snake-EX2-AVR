@@ -11,9 +11,7 @@
  *
  * Timer choice: the Arduino core owns Timer0 for millis(), so the passive
  * output uses Timer2 (8-bit, prescaler 64).  Timer1 is reserved for the
- * 15 fps scheduler documented in BACKLOG §4.4.
- *
- * BACKLOG.MD §5 D4, S1, S2.
+ * 15 fps scheduler.
  */
 #include "drivers/buzzer.h"
 #include "assets/sounds_gen.h"

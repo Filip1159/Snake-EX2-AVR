@@ -2,10 +2,10 @@
  * config.h — Snake EX2 AVR Port: Central Configuration
  *
  * Every constant used by the port has a named reference to its original
- * source (decompiled code, docs/reference.md, or BACKLOG.MD).
+ * source (decompiled code or docs/reference.md).
  *
  * Do not change these values without cross-referencing the original and
- * the 128×160 adaptation documented in BACKLOG.MD §1.5.
+ * the 128×160 adaptation documented in docs/reference.md.
  */
 
 #ifndef CONFIG_H
@@ -16,7 +16,7 @@
 /* ── Display ─────────────────────────────────────────────────────────────── */
 
 /** ST7735 panel resolution (target: 128×160, never scale or letterbox). */
-#define TFT_WIDTH  128   // BACKLOG.MD §1.5, §2.5
+#define TFT_WIDTH  128
 #define TFT_HEIGHT 160
 
 /** Panel variant offsets (set per actual module; defaults for common variant). */
@@ -25,7 +25,7 @@
 #define TFT_BGR       0  // 0=RGB, 1=BGR — set after color-bar test
 #define TFT_INVERT    0  // set after color-bar test
 
-/** Hardware SPI pins (ATmega644P/PA; same pinout as the retired ATmega32). BACKLOG.MD §2.3. */
+/** Hardware SPI pins (ATmega644P/PA). */
 #define LCD_CS   PB4
 #define LCD_DC   PB3
 #define LCD_RST  PB2
@@ -41,20 +41,20 @@
 #define BATTERY_POLL_MS      10000UL
 
 /* ── Geometry ────────────────────────────────────────────────────────────── */
-/** Derived 128×160 layout. BACKLOG.MD §1.5.
+/** Derived 128×160 layout.
  *
  * Original 128×128 layout has playfield 126×108 at (1,0), HUD at (0,108).
  * Target 128×160 layout has playfield 126×138 at (1,1), HUD at (0,139),
  * 1px black borders at y=0 and y=159.
  */
 
-/** Grid dimensions. Original: 21×18. Target: 21×23. BACKLOG.MD §1.1, §1.5. */
+/** Grid dimensions. Original: 21×18. Target: 21×23. */
 #define FIELD_COLS 21   // original: SnakeCanvas, ResourceDefs
 #ifndef FIELD_ROWS
-#define FIELD_ROWS 23   // derived: BACKLOG.MD §1.5 maze extension rule (host tests build with 18 to compare with the original)
+#define FIELD_ROWS 23   // derived maze extension (host tests build with 18 to compare with the original)
 #endif
 
-#define CELL_SIZE        6   // pixels per cell side. BACKLOG.MD §1.1
+#define CELL_SIZE        6   // pixels per cell side
 #define FIELD_CELLS      (FIELD_COLS * FIELD_ROWS)  // 483
 
 /** Playfield pixel area. */
@@ -68,7 +68,7 @@
 #define FIELD_ORIGIN_X   1
 #define FIELD_ORIGIN_Y   1
 
-/** HUD position. BACKLOG.MD §1.5 derived-layout table, Appendix B. */
+/** HUD position. */
 #define HUD_X            0
 #define HUD_Y            139   // original: 108
 #define HUD_WIDTH        128
@@ -94,7 +94,7 @@
 #define POWERUP_ICON_Y   142   // original: 111
 #define POWERUP_ICON_SIZE 13
 
-/** Title screen: 128×128 art at (0,16), centered vertically. BACKLOG.MD §1.2, D10. */
+/** Title screen: 128×128 art at (0,16), centered vertically. */
 #define TITLE_X          0
 #define TITLE_Y          16
 #define TITLE_WIDTH      128
@@ -108,7 +108,7 @@
 #define TITLE_TROPHY_R_X   101
 
 /* ── Snake start state ───────────────────────────────────────────────────── */
-/** Identical to original. BACKLOG.MD §1.1, Appendix B. */
+/** Identical to original. */
 #define START_LENGTH     6
 #define START_HEAD_COL   7     // cell column (0-based)
 #define START_HEAD_ROW   9     // cell row (0-based)
@@ -116,7 +116,7 @@
 #define START_HEAD_Y     (START_HEAD_ROW * CELL_SIZE)  // 54 px
 #define START_DIR        8   // = DIR_RIGHT; b.java: j=0x28, low nibble 8 (head x += 6)
 
-/** Initial food. BACKLOG.MD §1.1. */
+/** Initial food. */
 #define START_FOOD_COL   4
 #define START_FOOD_ROW   4
 #define START_FOOD_X     (START_FOOD_COL * CELL_SIZE)  // 24 px
@@ -136,13 +136,13 @@
 #define DIR_MASK  0x0F
 
 /* ── Timing ───────────────────────────────────────────────────────────────── */
-/** 15 fps. BACKLOG.MD §1.1 (original programmer's notes); §4.4. */
+/** 15 fps. */
 #define TARGET_FPS       15
 #define FRAME_PERIOD_MS  (1000 / TARGET_FPS)  // ~66.67 ms
 
 /**
  * Movement cadence: framesPerCell = 2 + (8 - speedIndex).
- * speedIndex 0..5 → framesPerCell 10,9,8,7,6,5.  BACKLOG.MD §9, Appendix B.
+ * speedIndex 0..5 → framesPerCell 10,9,8,7,6,5.
  */
 #define SPEED_FRAMES_BASE 2
 #define SPEED_OFFSET      8
@@ -156,7 +156,7 @@
 #define SPEED_MIN_FRAMES 1
 #define SPEED_MAX_FRAMES 10
 
-/** Collision/death animation. b.java — 40 engine ticks. BACKLOG.MD §1.1. */
+/** Collision/death animation. b.java — 40 engine ticks. */
 #define DEATH_TICKS      40
 
 /** Active power-up duration range. b.java: ba = 25 + rand%50. */
@@ -172,39 +172,38 @@
 
 /* ── Snake mechanics ──────────────────────────────────────────────────────── */
 
-/** Normal food score = speedIndex + 1. b.java: Aa(n). BACKLOG.MD §1.1. */
+/** Normal food score = speedIndex + 1. b.java: Aa(n). */
 #define FOOD_SCORE_BASE  1
 
-/** Bonus food adds its countdown value. BACKLOG.MD §1.1, Appendix B. */
+/** Bonus food adds its countdown value. */
 /**
  * Bonus boost (ID 5): the next 3 bonus foods start with +24 on their countdown
  * timer (b.java ~1590); bonus timer is otherwise 25 + rand%50.
  */
 #define BONUS_BOOST_EXTRA 24
 
-/** Snakes per wrap: x wraps at 0↔126, y wraps at 0↔138. BACKLOG.MD §1.1, App.B. */
+/** Snakes per wrap: x wraps at 0↔126, y wraps at 0↔138. */
 #define WRAP_X_MIN  0
 #define WRAP_X_MAX  FIELD_WIDTH_PX   // 126 → x + 126 or x - 126
 #define WRAP_Y_MIN  0
 #define WRAP_Y_MAX  FIELD_HEIGHT_PX  // 138 → y + 138 or y - 138
 
-/** Tongue range: 2 cells ahead. b.java draw method. BACKLOG.MD §1.1. */
+/** Tongue range: 2 cells ahead. b.java draw method. */
 #define TONGUE_RANGE 2
 
 /* ── Extreme campaign ─────────────────────────────────────────────────────── */
 /** Portal threshold: score > levelStartScore + speedIndex*10 + levelNumber*20. */
-/** BACKLOG.MD §1.1, Appendix B. */
 #define PORTAL_SPEED_MULT  10
 #define PORTAL_LEVEL_MULT  20
 
-/** Maze cycle in Extreme mode: -1,0,1,2,3,4. b.java, BACKLOG.MD §1.1. */
+/** Maze cycle in Extreme mode: -1,0,1,2,3,4. b.java. */
 #define EXTREME_MAZE_COUNT 6
 
 /** Portal shrink: one segment per tick until length <= 2, then reset. */
 #define PORTAL_SHRINK_MIN_LENGTH 2
 
 /* ── Food ─────────────────────────────────────────────────────────────────── */
-/** Food spawn retry: 8 attempts, then fallback scan. b.java, BACKLOG.MD §1.1. */
+/** Food spawn retry: 8 attempts, then fallback scan. b.java. */
 #define FOOD_SPAWN_RETRIES 8
 
 /** Moving food timer: Ea = (15 + rand%15) * ((8 - speedIndex>>1) + 1). b.java. */
@@ -216,7 +215,7 @@
 #define MAP_FLAG_COIN    0x20   // coin rush overlay
 
 /* ── Power-up inventory ───────────────────────────────────────────────────── */
-/** 10 power-up types. b.java: c() method. BACKLOG.MD Appendix B. */
+/** 10 power-up types. b.java: c() method. */
 #define POWERUP_TYPE_COUNT 10
 #define POWERUP_SLOTS       4   // Ba[4][4] in original
 #define POWERUP_EXPIRED_ID  15  // Aa=15 means no active power-up
@@ -226,7 +225,7 @@
 #define POWERUP_STRIP_ICON_COUNT 10
 
 /* ── Audio ────────────────────────────────────────────────────────────────── */
-/** 13 sounds (12 + 1 synthetic beep). BACKLOG.MD §1.3. */
+/** 13 sounds (12 + 1 synthetic beep). */
 #define SFX_COUNT         13
 #define SFX_BEEP_INDEX    12
 #define SFX_BEEP_FREQ_HZ  1760
@@ -254,14 +253,12 @@
 /**
  * wall_strip.png: 120×6, 20 tiles of 6×6.
  * The game uses tiles 1..15 (tile IDs 0..14 in the extracted index).
- * Backlog §1.2. Tile hex values in maze maps correspond to wall tile index+1.
  */
 #define WALL_TILE_COUNT   15   // tiles used in gameplay (indices 0..14)
 #define WALL_STRIP_TILES  20   // total tiles in the strip
 #define WALL_TILE_SIZE     6
 
 /* ── EEPROM layout ────────────────────────────────────────────────────────── */
-/** BACKLOG.MD §3.3. */
 #define EEPROM_MAGIC      0x53324558   // "S2EX"
 #define EEPROM_VERSION    1
 #define EEPROM_MAGIC_OFF  0
@@ -272,13 +269,13 @@
 #define EEPROM_SIZE       1024
 
 /* ── HUD digit font ───────────────────────────────────────────────────────── */
-/** digits.png: 77×9, 11 glyphs × 7 px. BACKLOG.MD §1.2. */
+/** digits.png: 77×9, 11 glyphs × 7 px. */
 #define DIGIT_GLYPH_WIDTH  7
 #define DIGIT_GLYPH_HEIGHT 9
 #define DIGIT_GLYPH_COUNT  11   // digits 0..9 + one extra
 
 /* ── Resource extraction offsets ──────────────────────────────────────────── */
-/** From d blob at specified offset in BACKLOG.MD §1.2 and docs/reference.md. */
+/** From the `d` blob; offsets in docs/reference.md. */
 #define D_OFFSET_MAZES        0     // 2268 bytes — 6×378 original bytes
 #define D_OFFSET_TITLE        2268  // 3616 bytes — title.png 128×128
 #define D_OFFSET_DIGITS       5884  // 1280 bytes — digits.png 77×9
@@ -300,14 +297,13 @@
 #define RAM_TOTAL_B      4096   // 4 KB
 #define RAM_FIELD_MAP    483    // uint8_t[483] maze map
 #define RAM_DIR_HISTORY  483    // uint8_t[483] direction history
-#define RAM_STACK_MIN    512    // minimum stack margin (Q5)
+#define RAM_STACK_MIN    512    // minimum stack margin
 
 /* ── Feature flags ────────────────────────────────────────────────────────── */
-/** BACKLOG.MD §4.7, §10 Decisions. */
 #define FEATURE_TITLE_ART     1   // full title art in flash (~8.9 KB); 0 = small built-in logo
-#define FEATURE_PASSIVE_BUZZER 0  // set to 1 when passive piezo is wired (D3)
-#define FEATURE_EXTREME_CAMPAIGN 1 // D5: implement all 60 stages
-#define FEATURE_RESUME_SAVE   0   // set to 1 if it fits (D7)
+#define FEATURE_PASSIVE_BUZZER 0  // set to 1 when passive piezo is wired
+#define FEATURE_EXTREME_CAMPAIGN 1 // implement all 60 stages
+#define FEATURE_RESUME_SAVE   0   // set to 1 if it fits
 
 /** Q5 debug instrumentation: paint free SRAM at boot and show the stack
  *  high-water mark on the credits screen.  Release builds keep this 0. */

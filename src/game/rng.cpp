@@ -2,8 +2,8 @@
  * rng.cpp — xorshift32 random source for the AVR build.
  *
  * The game core only needs a cheap uniform 32-bit value (the original used
- * java.util.Random). Host tests substitute the exact Java LCG so oracle traces
- * compare bit-for-bit; on hardware play no trace parity is required.
+ * java.util.Random). Host tests may substitute the exact Java LCG; on hardware no
+ * parity with the original is required.
  */
 #include "game/rng.h"
 

@@ -5,9 +5,8 @@
  * Passive piezo mode: Timer2 CTC square wave with the decoded Nokia tone table.
  * Non-blocking: start a sequence, service it from the main loop.
  *
- * Sound IDs match the original playSFX(0..12) (BACKLOG §1.3, §5 S1/S2).
- * The sequences live in assets/sounds_gen.* and are generated from
- * reference/sounds.nok by tools/gen_sounds.py.
+ * Sound IDs match the original playSFX(0..12).
+ * The sequences live in assets/sounds_gen.* (decoded from the original sounds.nok).
  */
 #ifndef DRIVERS_BUZZER_H
 #define DRIVERS_BUZZER_H
@@ -19,7 +18,7 @@
 extern "C" {
 #endif
 
-/** Sound IDs matching the original playSFX(0..12). BACKLOG.MD §1.3. */
+/** Sound IDs matching the original playSFX(0..12). */
 #define SFX_SPEED_UP       0
 #define SFX_SLOW_DOWN      1
 #define SFX_GHOST          2

@@ -3,8 +3,6 @@
  *
  * Stores settings + high scores in EEPROM with magic/version/CRC.
  * Falls back to defaults on corruption.
- *
- * BACKLOG.MD §3.3, §5 D5.
  */
 #ifndef DRIVERS_EEPROM_STORE_H
 #define DRIVERS_EEPROM_STORE_H

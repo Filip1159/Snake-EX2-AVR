@@ -36,16 +36,9 @@ void setup() {
     stack_measure_begin();
 #endif
 
-    // Disable JTAG to free PORTC (PC2–PC5). ATmega644P/PA moves JTD to MCUCR;
-    // the ATmega32 fallback used MCUCSR.
-#if defined(__AVR_ATmega644A__) || defined(__AVR_ATmega644__) || \
-    defined(__AVR_ATmega644P__) || defined(__AVR_ATmega644PA__)
+    // Disable JTAG to free PORTC (PC2–PC5); the bit must be written twice within 4 cycles.
     MCUCR = (1 << JTD);
     MCUCR = (1 << JTD);
-#else
-    MCUCSR = (1 << JTD);
-    MCUCSR = (1 << JTD);
-#endif
 
     gpio_init();
     st7735_init();

@@ -1,5 +1,5 @@
 /**
- * settings.h — Settings screen (BACKLOG U2).
+ * settings.h — Settings screen.
  *
  * Edits the persisted settings (Mode, Maze, Speed, Sound) in the main menu's Series 40
  * style.  Up/Down selects an item, Left/Right changes its value (only the on-screen

@@ -18,7 +18,7 @@ import numpy as np
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
 import gen_wallpaper                                       # noqa: E402
-from gen_assets import fmt, rgb565                         # noqa: E402
+from asset_util import fmt, rgb565                         # noqa: E402
 
 THRESHOLD = 75      # colour distance from the wallpaper that counts as ink
 ROWS = 13           # the bar lives in rows 1..12; row 0 and columns 0-1 are screen border
@@ -29,7 +29,7 @@ SILENT_X0, SILENT_X1 = 46, 91   # columns of the muted-note icon and "Silent"
 
 def main():
     bg = gen_wallpaper.reconstruct().astype(np.float64)
-    im = cv2.imread(str(ROOT / "Nokia-GUI4.jpg"))
+    im = cv2.imread(str(ROOT / "tools" / "img" / "Nokia-GUI4.jpg"))
     dist = np.sqrt(((im.astype(np.float64) - bg) ** 2).sum(2))
     mask = dist > THRESHOLD
     mask[0, :] = False

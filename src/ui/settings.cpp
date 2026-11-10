@@ -1,5 +1,5 @@
 /**
- * settings.cpp — Settings screen (BACKLOG U2), laid out like the main menu.
+ * settings.cpp — Settings screen, laid out like the main menu.
  */
 #include "ui/settings.h"
 #include "ui/list.h"

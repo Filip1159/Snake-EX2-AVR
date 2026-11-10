@@ -1,5 +1,5 @@
 /**
- * highscores.h — High-score table and saving (BACKLOG U3).
+ * highscores.h — High-score table and saving.
  *
  * Displays the top three scores per mode (Classic indices 0..2, Extreme 3..5).
  * On game over, a qualifying score is saved without any extra screen.

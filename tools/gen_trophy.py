@@ -10,7 +10,7 @@ from PIL import Image
 
 ROOT = Path(__file__).resolve().parent.parent
 SCALE, X0, Y0, W, H = 3, 1086, 606, 19, 21      # sheet pixel of the sprite's top-left
-sheet = Image.open(sys.argv[1] if len(sys.argv) > 1 else ROOT / "sprites.png").convert("RGB")
+sheet = Image.open(sys.argv[1] if len(sys.argv) > 1 else ROOT / "tools" / "img" / "sprites.png").convert("RGB")
 bg = sheet.getpixel((300, 300))                  # sheet background = transparent colour
 
 px = [sheet.getpixel((X0 + x * SCALE + 1, Y0 + y * SCALE + 1)) for y in range(H) for x in range(W)]

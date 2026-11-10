@@ -1,5 +1,5 @@
 /**
- * classic.h — Validated Classic-mode start (BACKLOG G9).
+ * classic.h — Validated Classic-mode start.
  *
  * Classic accepts no maze (-1) or one of the five derived mazes (0..4), and the
  * six speed indices 0..5. The caller owns the 483-byte map buffer used by mazes

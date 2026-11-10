@@ -1,10 +1,9 @@
 /**
- * game.h — Snake EX2 game core: movement, collision, food, score, tongue (BACKLOG G1-G6).
+ * game.h — Snake EX2 game core: movement, collision, food, score, tongue.
  *
  * Faithful port of the decompiled engine (class b, method b()); the original's field
  * names are noted in comments. Positions are pixels (multiples of CELL_SIZE) exactly like
- * the original so its quirks reproduce bit-for-bit. Verified against the original engine
- * run headless (tools/oracle, test/host/test_game_oracle.cpp).
+ * the original so its quirks reproduce bit-for-bit.
  *
  * Classic selection (G9), tongue in both modes, Extreme power-ups/campaign (G6-G8). No
  * hardware dependencies.

@@ -6,7 +6,7 @@ of the same wallpaper.  Pixels covered by UI (status bar, title, list text, sele
 scroll bar, soft keys, watermark) are dropped per image (MASKS), the second screenshot is
 brightness-matched to the first and fills what the first hides, and the remaining holes
 are inpainted from their surroundings.  The result is reduced to a small palette and
-stored as an RLE `img_t` (same format as tools/gen_assets.py).
+stored as an RLE `img_t` (same format as tools/asset_util.py).
 
     python3 tools/gen_wallpaper.py [--colors N]     # needs numpy + opencv-python-headless
 """
@@ -19,7 +19,7 @@ import numpy as np
 
 ROOT = Path(__file__).resolve().parent.parent
 sys.path.insert(0, str(ROOT / "tools"))
-from gen_assets import encode_rle, decode_rle, fmt, rgb565   # noqa: E402
+from asset_util import encode_rle, decode_rle, fmt, rgb565   # noqa: E402
 
 W, H = 128, 160
 
@@ -48,7 +48,7 @@ def clean_mask(name, shape):
 
 
 def reconstruct():
-    ims = {n: cv2.imread(str(ROOT / n)) for n in MASKS}
+    ims = {n: cv2.imread(str(ROOT / "tools" / "img" / n)) for n in MASKS}
     assert all(im.shape[:2] == (H, W) for im in ims.values()), "screenshots must be 128x160"
     ok = {n: clean_mask(n, ims[n].shape) for n in ims}
 

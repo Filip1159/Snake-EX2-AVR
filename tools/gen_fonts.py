@@ -48,7 +48,7 @@ BIG_LINES += [("5", 27, 34, 118, "Alarm clock", True), ("5", 63, 34, 118, "Calen
 
 
 def load(suffix):
-    return cv2.imread(str(ROOT / f"Nokia-GUI{suffix}.jpg")).astype(np.int32)
+    return cv2.imread(str(ROOT / "tools" / "img" / f"Nokia-GUI{suffix}.jpg")).astype(np.int32)
 
 
 def ink_mask(im, light):

@@ -1,10 +1,9 @@
 # Snake EX2 AVR — host checks and firmware build.
 #
-# `make test` runs the complete host suite, including the Q2 asset golden test.
-# `make firmware` builds the ATmega644PA image.  `make assets` regenerates the
-# checked-in assets from reference/d; never hand-edit assets_gen.*.
+# `make test` runs the complete host suite.
+# `make firmware` builds the ATmega644PA image.
 
-.PHONY: all test assets assets-test visual firmware upload fuses fuses-read \
+.PHONY: all test firmware upload fuses fuses-read \
         stack-measure stack-measure-upload clean
 
 AVRDUDE ?= avrdude
@@ -18,17 +17,6 @@ all: test firmware
 
 test:
 	sh test/host/run.sh
-
-assets:
-	python3 tools/extract_snake_ex2.py
-	python3 tools/convert_assets.py
-	python3 tools/gen_assets.py
-
-assets-test:
-	python3 tools/test_assets.py
-
-visual:
-	python3 tools/test_visual.py
 
 firmware:
 	pio run -e ATmega644PA
@@ -54,4 +42,4 @@ stack-measure-upload:
 	PLATFORMIO_BUILD_FLAGS="-DSTACK_MEASURE=1" pio run -e ATmega644PA -t upload
 
 clean:
-	rm -rf .pio/build build/assets
+	rm -rf .pio/build

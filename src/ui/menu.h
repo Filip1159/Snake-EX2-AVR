@@ -1,5 +1,5 @@
 /**
- * menu.h — Title-screen main menu state and renderer (BACKLOG U1).
+ * menu.h — Title-screen main menu state and renderer.
  *
  * The menu is a reconstruction of the original Series 40 list UI: a small
  * status bar, a title row, full-width rows

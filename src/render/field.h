@@ -1,5 +1,5 @@
 /**
- * field.h — Playfield renderer (BACKLOG A3). 21x23 cells of 6x6 px at (1,1).
+ * field.h — Playfield renderer. 21x23 cells of 6x6 px at (1,1).
  */
 #ifndef RENDER_FIELD_H
 #define RENDER_FIELD_H

@@ -1,5 +1,5 @@
 /**
- * hud.h — HUD bar, score/bonus digits, power-up icon, title (BACKLOG A4).
+ * hud.h — HUD bar, score/bonus digits, power-up icon, title.
  * Layout from b.java: HUD image at y=108 (derived 139); score digits at (6,114),
  * bonus digits at (69,114), power-up icon slot at (110,111). Derived = y + 31.
  */

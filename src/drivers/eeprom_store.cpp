@@ -1,7 +1,7 @@
 /**
  * eeprom_store.cpp — Settings and High-Score Persistence
  *
- * Fixed layout (BACKLOG.MD §3.3), all multi-byte values little-endian:
+ * Fixed layout, all multi-byte values little-endian:
  *   0    magic "S2EX"
  *   4    version
  *   8    settings, 5 bytes: mode, maze(int8), speed, sound, backlight
@@ -13,7 +13,6 @@
  *   64   saved game (src/game/savegame.cpp, its own marker + CRC)
  *
  * Each block has its own CRC so a write only touches one block.
- * BACKLOG.MD §5 D5.
  */
 #include "drivers/eeprom_store.h"
 #include "config.h"

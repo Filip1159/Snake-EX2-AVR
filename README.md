@@ -1,105 +1,89 @@
 # Snake EX2 — ATmega644PA hardware port
 
-A faithful standalone port of Nokia's **Snake EX2** (Nokia 3300, 2003, MIDlet v1.19) to an
-ATmega644PA, an ST7735 128×160 SPI LCD and six buttons. The original Java game logic,
-mazes, sprites, HUD, sounds, menus and Extreme-mode progression were reconstructed from the
-decompiled MIDlet and a frozen copy of its `d` resource; the port keeps the original 15 fps
-movement cadence, edge wrapping, power-ups, portal/shrink cycle, high-score table and sound
-effects.
+A standalone port of Nokia's **Snake EX2** (Nokia 3300, 2003, MIDlet v1.19) to an ATmega644PA, an
+ST7735 128×160 SPI LCD and six buttons, powered by a single Li-ion cell. The game logic, mazes,
+sprites, HUD, sounds, menus and Extreme-mode progression were reconstructed from the decompiled
+MIDlet; the port keeps the original 15 fps movement cadence, edge wrapping, power-ups,
+portal/shrink cycle, high-score table and sound effects, wrapped in a Series 40 style menu.
 
-![Target](https://img.shields.io/badge/MCU-ATmega644PA%20%40%208%20MHz-blue)
+![MCU](https://img.shields.io/badge/MCU-ATmega644PA%20%40%208%20MHz-blue)
 ![Display](https://img.shields.io/badge/display-ST7735%20128%C3%97160-green)
+
+<table>
+  <tr>
+    <td width="50%"><img src="img/img1.jpg" alt="Assembled board with the display"></td>
+    <td width="50%"><img src="img/img2.jpg" alt="Back of the case with the Li-ion cell"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>The board: ATmega644PA, LCD, buzzer and six buttons</sub></td>
+    <td align="center"><sub>Back of the 3D-printed case with the Li-ion cell</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="img/menu1.jpg" alt="Main menu"></td>
+    <td width="50%"><img src="img/menu2.jpg" alt="Settings"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Main menu, with the battery level in the status bar</sub></td>
+    <td align="center"><sub>Settings: mode, maze, speed, sound</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="img/snake1.jpg" alt="Classic game"></td>
+    <td width="50%"><img src="img/snake2.jpg" alt="Game in progress"></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Game start</sub></td>
+    <td align="center"><sub>Game in progress</sub></td>
+  </tr>
+  <tr>
+    <td width="50%"><img src="img/menu3.jpg" alt="Credits"></td>
+    <td></td>
+  </tr>
+  <tr>
+    <td align="center"><sub>Credits</sub></td>
+    <td></td>
+  </tr>
+</table>
+
+## Features
+
+- Classic mode (6 mazes × 6 speeds) and the endless Extreme campaign with power-ups, portal and
+  maze cycling.
+- Pause saves the game to EEPROM; "Continue" restores it. Settings and high scores (top 3 per
+  mode) are stored in EEPROM too.
+- All 13 original sound effects on a buzzer (active by default, passive piezo supported).
+- Battery gauge in the status bar: the supply voltage is measured against the internal 1.1 V
+  reference, and the icon turns red below 20 %.
 
 ## Hardware
 
-| Part | Notes                                                                                                       |
-|------|-------------------------------------------------------------------------------------------------------------|
-| ATmega644PA-PU | DIP-40, 5 V, 8 MHz (internal RC as built; external crystal optional), 64 KB flash / 4 KB SRAM / 1 KB EEPROM |
-| ST7735 128×160 SPI LCD | 3.3 V logic; level-shift the 5 V MCU outputs                                                                |
-| 6 tactile buttons | PA0–PA5, active low, internal pull-ups                                                                      |
-| Active buzzer or passive piezo | PD6; passive mode uses Timer2                                                                               |
-| USBasp | 6-pin ISP header                                                                                            |
+| Part | Notes |
+|------|-------|
+| ATmega644PA-PU | DIP-40, internal 8 MHz RC, 64 KB flash / 4 KB SRAM / 1 KB EEPROM |
+| 1.8" ST7735 128×160 SPI LCD | 8-pin module, logic pins wired straight to the MCU |
+| 6 tactile buttons | PA0–PA5, active low, internal pull-ups |
+| Buzzer | PD6 through a 47 Ω resistor |
+| 1× Li-ion cell | Powers the MCU and LCD directly (no regulator) |
+| USBasp | 6-pin ISP header |
 
-Full pin table, BOM, power/level-shifting notes, fuse values and USBasp wiring:
-[`docs/hardware.md`](docs/hardware.md).
+The KiCad project is in [`snake-ex2-avr-kicad.zip`](snake-ex2-avr-kicad.zip); the case is in
+[`snake-avr-game.f3d`](snake-avr-game.f3d) (Fusion 360), with `.stl` and `.3mf` exports for
+printing. Pin table, power notes and fuses: [`docs/hardware.md`](docs/hardware.md).
 
-## Quick start
-
-```sh
-# Build the firmware
-pio run -e ATmega644PA        # or: make firmware
-
-# Run the host tests (assets, visual diff, logic/oracle suite)
-make test
-
-# Flash with USBasp
-pio run -e ATmega644PA -t upload   # or: make upload
-```
-
-A clean checkout builds without regenerating assets: `src/assets/assets_gen.{h,cpp}` (from
-`reference/d`) and `sounds_gen.{h,cpp}` (from `reference/sounds.nok`) are checked in. To
-regenerate them:
+## Build and flash
 
 ```sh
-make assets                    # images/mazes/sprites from reference/d
-python3 tools/gen_sounds.py    # sound tables from reference/sounds.nok
-make assets-test
+pio run -e ATmega644PA             # build   (or: make firmware)
+pio run -e ATmega644PA -t upload   # flash with USBasp   (or: make upload)
+make test                          # host tests
 ```
 
-Build, flash, fuse, EEPROM and recovery details:
-[`docs/build.md`](docs/build.md).
+Generated asset tables are checked in, so a clean checkout builds without the original game
+files. Fuses, EEPROM and recovery: [`docs/build.md`](docs/build.md).
 
 ## Controls
 
 | Button | Game | Menus |
 |--------|------|-------|
 | Up / Down / Left / Right | Steer the snake | Navigate |
-| Fire | Tongue / confirm | Select / confirm |
-| Pause | Save and leave the game / back | Back |
-
-The game starts at the title screen, then the main menu. Classic mode lets you choose a maze
-and speed; the tongue works in both modes. Extreme mode is the endless score-gated campaign
-with power-ups, the portal and maze cycling. Back during a game saves it to EEPROM and returns to the menu; "Continue" there restores it and waits for Fire. The
-high-score table stores two scores for each mode (four entries total) in EEPROM.
-
-## Buzzer mode
-
-The default is an **active buzzer** (`FEATURE_PASSIVE_BUZZER 0` in `src/config.h`). If you
-wire a passive piezo, either set the flag to `1` and rebuild, or call
-`buzzer_set_mode(BUZZER_MODE_PASSIVE)` at runtime. The driver plays all 13 original sound
-sequences non-blocking; the settings menu can mute sound.
-
-## Repository layout
-
-| Path | Contents |
-|------|----------|
-| `src/game/` | Original game logic: movement, collision, food, power-ups, Extreme/portal |
-| `src/render/` | Dirty-cell playfield renderer, sprites, HUD, high scores, menus |
-| `src/drivers/` | ST7735, buttons, buzzer, EEPROM |
-| `src/assets/` | Generated maze/sprite/image/sound tables (do not hand-edit `*_gen.*`) |
-| `src/ui/` | Title, menu, settings, credits, high scores |
-| `tools/` | Asset extractor/converter/generator, golden and visual tests |
-| `test/host/` | Native test programs and stub HAL/Arduino layer |
-| `reference/` | Frozen original `d` resource, decompiled classes, screenshots |
-| `docs/` | Hardware/build reference, sprite notes, original reference notes |
-| `BACKLOG.MD` | Full implementation plan, decisions, status and session log |
-
-## Status
-
-G1–G9, U1–U5, S1–S2, Q1–Q3 and P1–P2 are complete; S3 is implemented and host-verified,
-with the hardware check pending. Q5's host/static frame analysis and stack instrumentation are
-complete; the on-hardware stack reading is still to be measured. Q4 (soak test) and P3 (final
-acceptance) require the real board. See `BACKLOG.MD` for the detailed status and the remaining
-hardware checklist.
-
-## Notes
-
-- No SD card is used; all assets are in flash and settings/high scores are in EEPROM.
-- The firmware targets 15 fps; normal dirty-cell frames are under 50 ms. Full redraws
-  (level start, lights-out, death-blink transitions) are event-only and take about 109 ms at
-  the 4 MHz SPI clock.
-- For the Q5 stack check, `make stack-measure` builds a debug image that shows
-  `STACK FREE: NNNN` on the credits screen; see `docs/build.md` §9.
-- The original game's assets and decompiled code are included for preservation and
-  interoperability research. Snake EX2 is a Nokia trademark; this is a non-commercial
-  fan port.
+| Fire | Tongue | Select / confirm |
+| Pause | Save and return to the menu | Back |

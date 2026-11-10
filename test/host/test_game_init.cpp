@@ -1,6 +1,4 @@
-/* G1/G2/G3 at the derived 21x23 geometry: initial state, cadence, wraps, wall death.
- * (Self-collision, food spawning and bonus behaviour are covered bit-for-bit by the
- * oracle replay against the decompiled original in test_game_oracle.cpp.) */
+/* G1/G2/G3 at the derived 21x23 geometry: initial state, cadence, wraps, wall death. */
 #include "assets/maze.h"
 #include "game/game.h"
 #include "config.h"

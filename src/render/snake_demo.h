@@ -1,4 +1,4 @@
-/** snake_demo.h — static snake exercising every turn/direction sprite (BACKLOG A5 check). */
+/** snake_demo.h — static snake exercising every turn/direction sprite. */
 #ifndef RENDER_SNAKE_DEMO_H
 #define RENDER_SNAKE_DEMO_H
 

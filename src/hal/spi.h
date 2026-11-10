@@ -3,7 +3,6 @@
  *
  * Uses hardware SPI (PB5=MOSI, PB6=MISO, PB7=SCK).
  * Mode 0 (CPOL=0, CPHA=0), MSB first.
- * BACKLOG.MD §2.3, §2.5.
  */
 #ifndef HAL_SPI_H
 #define HAL_SPI_H

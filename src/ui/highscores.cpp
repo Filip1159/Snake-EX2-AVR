@@ -1,5 +1,5 @@
 /**
- * highscores.cpp — High-score table and saving (BACKLOG U3).
+ * highscores.cpp — High-score table and saving.
  */
 #include "ui/highscores.h"
 #include "ui/chrome.h"
