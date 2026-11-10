@@ -10,10 +10,8 @@ void gpio_init(void) {
     lcd_dc_high();
     lcd_rst_high();
 
-    // SD CS: output, high
-
     // Buzzer: output, low
-    DDRB |= (1 << PB0);
+    DDRD |= (1 << PD6);
     buzzer_off();
 
     // Backlight: output, on

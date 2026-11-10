@@ -1,8 +1,8 @@
 /**
  * buzzer.cpp — Buzzer Driver
  *
- * Active buzzer on PB0 via an NPN low-side switch: the note sequence gates the
- * pin on/off.  Passive piezo on the same pin: Timer2 CTC toggles PB0 at the
+ * Active buzzer on PD6 via an NPN low-side switch: the note sequence gates the
+ * pin on/off.  Passive piezo on the same pin: Timer2 CTC toggles PD6 at the
  * decoded note frequency.
  *
  * The decoded Nokia RTPL table is in assets/sounds_gen.*.  Notes are timed
@@ -11,9 +11,7 @@
  *
  * Timer choice: the Arduino core owns Timer0 for millis(), so the passive
  * output uses Timer2 (8-bit, prescaler 64).  Timer1 is reserved for the
- * 15 fps scheduler documented in BACKLOG §4.4.
- *
- * BACKLOG.MD §5 D4, S1, S2.
+ * 15 fps scheduler.
  */
 #include "drivers/buzzer.h"
 #include "assets/sounds_gen.h"
@@ -77,7 +75,7 @@ static void tone_start(uint16_t hz, uint8_t ms) {
 #if defined(__AVR__)
     uint8_t ocr = (s_mode == BUZZER_MODE_PASSIVE) ? buzzer_ocr_for_hz(hz) : 0;
     if (ocr != 0) {
-        /* Passive piezo: Timer2 CTC toggles PB0 in the ISR. */
+        /* Passive piezo: Timer2 CTC toggles PD6 in the ISR. */
         TCCR2A = (1 << WGM21);
         TCCR2B = (1 << CS22);           /* prescaler 64 */
         OCR2A  = ocr;
@@ -85,7 +83,7 @@ static void tone_start(uint16_t hz, uint8_t ms) {
         TIMSK2 = (1 << OCIE2A);
         return;
     }
-    /* Active buzzer, or a pause in passive mode: stop the timer and gate PB0. */
+    /* Active buzzer, or a pause in passive mode: stop the timer and gate PD6. */
     TCCR2A = 0;
     TCCR2B = 0;
     TIMSK2 = 0;
@@ -181,8 +179,8 @@ uint16_t buzzer_note_frequency(void) {
 }
 
 #if defined(__AVR__)
-/** Timer2 compare match: toggle PB0 for the passive piezo square wave. */
+/** Timer2 compare match: toggle PD6 for the passive piezo square wave. */
 ISR(TIMER2_COMPA_vect) {
-    PORTB ^= (1 << PB0);
+    PORTD ^= (1 << PD6);
 }
 #endif

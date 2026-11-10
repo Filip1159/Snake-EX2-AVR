@@ -1,7 +1,7 @@
 /**
  * buttons.cpp — Button Driver
  *
- * BACKLOG.MD §5 D3. Time-based debounce (DEBOUNCE_MS): a raw level change is
+ * Time-based debounce (DEBOUNCE_MS): a raw level change is
  * accepted only after it has persisted for DEBOUNCE_MS. Auto-repeat after
  * REPEAT_DELAY_MS of hold, then every REPEAT_RATE_MS.
  *

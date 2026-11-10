@@ -3,8 +3,6 @@
  *
  * Stores settings + high scores in EEPROM with magic/version/CRC.
  * Falls back to defaults on corruption.
- *
- * BACKLOG.MD §3.3, §5 D5.
  */
 #ifndef DRIVERS_EEPROM_STORE_H
 #define DRIVERS_EEPROM_STORE_H
@@ -33,7 +31,8 @@ typedef struct {
 
 /* ── High scores ────────────────────────────────────────────────────────── */
 
-#define HIGH_SCORE_COUNT  4   // 2 classic + 2 extreme
+#define SCORES_PER_MODE   3   // top 3 per mode
+#define HIGH_SCORE_COUNT  (2 * SCORES_PER_MODE)   // classic 0..2, extreme 3..5
 #define CRC16_POLY        0x1021  // CCITT
 
 /* ── API ────────────────────────────────────────────────────────────────── */
@@ -57,12 +56,15 @@ bool eeprom_load_scores(void);
 /** Save high scores to EEPROM. */
 void eeprom_save_scores(void);
 
-/** Get/set an individual score. index 0..3. */
+/** Get/set an individual score. index 0..5 (mode * SCORES_PER_MODE + rank). */
 uint32_t eeprom_get_score(uint8_t index);
 void eeprom_set_score(uint8_t index, uint32_t score);
 
 /** Compute CRC16 over a buffer. Used for validation/testing. */
 uint16_t eeprom_crc16(const uint8_t *data, uint16_t len);
+
+/** Continue a CRC16 over more data: start with 0xFFFF; eeprom_crc16(d, n) is one call. */
+uint16_t eeprom_crc16_update(uint16_t crc, const uint8_t *data, uint16_t len);
 
 #ifdef __cplusplus
 }

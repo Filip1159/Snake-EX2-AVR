@@ -1,5 +1,5 @@
 /**
- * playfield.h — Dirty-cell playfield renderer (BACKLOG G5).
+ * playfield.h — Dirty-cell playfield renderer.
  *
  * Draws the maze (base), food/bonus overlay and the snake. After each game_tick()
  * only the cells that changed are repainted: the new head, the vacated tail cell and

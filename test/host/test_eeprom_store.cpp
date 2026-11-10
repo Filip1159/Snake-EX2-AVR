@@ -43,8 +43,8 @@ int main() {
     uint8_t good[1024];
     memcpy(good, mock_eeprom, sizeof good);
     int undetected = 0;
-    for (int byte = 0; byte < 58; byte++) {
-        if ((byte >= 5 && byte < 8) || byte == 13 || (byte >= 16 && byte < 32) || (byte >= 42 && byte < 48)) continue;  /* unused */
+    for (int byte = 0; byte < 62; byte++) {
+        if ((byte >= 5 && byte < 8) || byte == 13 || (byte >= 16 && byte < 32) || (byte >= 46 && byte < 48)) continue;  /* unused */
         for (int bit = 0; bit < 8; bit++) {
             memcpy(mock_eeprom, good, sizeof good);
             mock_eeprom[byte] ^= 1 << bit;

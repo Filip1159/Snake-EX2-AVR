@@ -15,6 +15,9 @@ extern "C" {
  *  clipped to the current clip rectangle (default: whole 128x160 screen). */
 void sprite_draw(int16_t x, int16_t y, uint8_t id);
 
+/** Same as sprite_draw() for a sprite outside SPRITES[] (pointer to a PROGMEM spr_t). */
+void sprite_draw_p(int16_t x, int16_t y, const spr_t *spr_P);
+
 /** Clip subsequent sprite draws to [x0,x1) x [y0,y1) (like the original's Graphics clip). */
 void sprite_set_clip(int16_t x0, int16_t y0, int16_t x1, int16_t y1);
 

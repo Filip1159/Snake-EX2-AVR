@@ -1,9 +1,10 @@
 /**
- * settings.h — Settings screen (BACKLOG U2).
+ * settings.h — Settings screen.
  *
- * Edits the five persisted settings: Mode, Maze, Speed, Sound, Backlight.
- * Up/Down selects item; Left/Right changes value; Fire saves and shows
- * brief confirmation; Pause returns to the main menu.
+ * Edits the persisted settings (Mode, Maze, Speed, Sound) in the main menu's Series 40
+ * style.  Up/Down selects an item, Left/Right changes its value (only the on-screen
+ * copy); the "Save" soft key (Fire) writes all of them to EEPROM, "Back" (Pause) leaves
+ * without saving.
  */
 #ifndef UI_SETTINGS_H
 #define UI_SETTINGS_H
@@ -34,13 +35,20 @@ void settings_adjust(int8_t delta);
 /** Currently highlighted item. */
 setting_item_t settings_selected(void);
 
-/** Save current values to EEPROM and show a momentary confirmation. */
+/** Save all current values to EEPROM. */
 void settings_save(void);
 
 /** Repaint the complete 128×160 settings screen. */
 void settings_draw(void);
 
-/** Repaint only the value column of one row (for incremental updates). */
+/** Same screen coming from another wallpaper screen: repaints only what differs. */
+void settings_show(void);
+
+/** Repaint one row (selection moved: the row that lost / gained the highlight), the
+ *  title-row index and the scrollbar thumb. */
+void settings_draw_row(setting_item_t item);
+
+/** Repaint only the value text of the selected row (a value changed). */
 void settings_draw_value(setting_item_t item);
 
 #ifdef __cplusplus

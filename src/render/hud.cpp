@@ -1,6 +1,7 @@
 #include "render/hud.h"
 #include "render/image.h"
-#include "render/text.h"
+#include "render/sprite.h"
+#include "assets/trophy.h"
 #include "drivers/st7735.h"
 #include "config.h"
 
@@ -8,10 +9,6 @@
 #define HUD_ICON_Y  (POWERUP_ICON_Y)
 #define DIGIT_W     8
 
-#define TITLE_CHROME_INK   0x0010
-#define TITLE_TROPHY_FILL  0xD6BA
-#define TITLE_TROPHY_HI    0xFFFF
-#define TITLE_BUTTON_EDGE  0x8410
 
 static void draw_digits(uint8_t x, uint8_t y, uint32_t v, uint8_t n) {
     while (n--) {
@@ -45,63 +42,21 @@ void hud_draw_powerup(uint8_t id) {
     }
 }
 
-/* 14x14 silver trophy for the title screen's bottom band. */
-static void draw_trophy(uint8_t x, uint8_t y) {
-    /* Handles. */
-    st7735_fill_rect(x, y + 3, 3, 1, TITLE_CHROME_INK);
-    st7735_fill_rect(x, y + 4, 1, 2, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 1, y + 6, 2, 1, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 11, y + 3, 3, 1, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 13, y + 4, 1, 2, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 11, y + 6, 2, 1, TITLE_CHROME_INK);
-
-    /* Cup outline and fill. */
-    st7735_fill_rect(x + 3, y + 1, 8, 1, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 3, y + 2, 1, 5, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 10, y + 2, 1, 5, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 3, y + 7, 8, 1, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 4, y + 2, 6, 5, TITLE_TROPHY_FILL);
-    st7735_fill_rect(x + 5, y + 2, 1, 4, TITLE_TROPHY_HI);
-
-    /* Stem and base. */
-    st7735_fill_rect(x + 6, y + 8, 2, 2, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 7, y + 8, 1, 2, TITLE_TROPHY_FILL);
-    st7735_fill_rect(x + 4, y + 10, 6, 1, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 3, y + 11, 8, 1, TITLE_CHROME_INK);
-    st7735_fill_rect(x + 5, y + 10, 4, 1, TITLE_TROPHY_FILL);
-    st7735_fill_rect(x + 4, y + 11, 6, 1, TITLE_TROPHY_FILL);
-    st7735_fill_rect(x + 3, y + 13, 8, 1, TITLE_CHROME_INK);
-}
-
-static void draw_options_button(void) {
-    const uint8_t x = 36;
-    const uint8_t y = 146;
-    const uint8_t w = 56;
-    const uint8_t h = 10;
-    const char *label = "OPTIONS";
-
-    st7735_fill_rect(x, y, w, h, 0xFFFF);
-    st7735_fill_rect(x, y, w, 1, TITLE_BUTTON_EDGE);
-    st7735_fill_rect(x, (uint8_t)(y + h - 1), w, 1, TITLE_BUTTON_EDGE);
-    st7735_fill_rect(x, y, 1, h, TITLE_BUTTON_EDGE);
-    st7735_fill_rect((uint8_t)(x + w - 1), y, 1, h, TITLE_BUTTON_EDGE);
-
-    {
-        uint8_t tw = text_width(label, 1);
-        text_draw((uint8_t)(x + (w - tw) / 2), (uint8_t)(y + 2), label, 1,
-                  TITLE_CHROME_INK);
-    }
-}
-
 void title_draw(void) {
-    st7735_fill_rect(0, 0, 128, TITLE_Y, TITLE_BG_COLOR);
+    /* The art's first and last rows are flat colours, so the 16 rows above and
+     * below it extend them seamlessly to the full 128x160 screen. */
+    st7735_fill_rect(0, 0, 128, TITLE_Y, TITLE_TOP_COLOR);
     st7735_fill_rect(0, TITLE_Y + TITLE_HEIGHT, 128,
-                     160 - TITLE_Y - TITLE_HEIGHT, TITLE_BG_COLOR);
+                     160 - TITLE_Y - TITLE_HEIGHT, TITLE_BOTTOM_COLOR);
     img_draw(TITLE_X, TITLE_Y, &IMG_TITLE);
+}
 
-    /* The reference title screen places two trophies and an Options button
-     * in the band below the original 128x128 art. */
-    draw_trophy(6, 145);
-    draw_trophy(108, 145);
-    draw_options_button();
+void title_draw_score(uint32_t score, bool new_best) {
+    title_draw();
+    img_draw(TITLE_SCORE_X, TITLE_SCORE_Y, &IMG_HS_FRAME);
+    hud_draw_number(TITLE_SCORE_X + 6, TITLE_SCORE_Y + 6, score, SCORE_DIGITS);
+    if (new_best) {
+        sprite_draw_p(TITLE_TROPHY_L_X, TITLE_SCORE_Y, &SPR_TROPHY);
+        sprite_draw_p(TITLE_TROPHY_R_X, TITLE_SCORE_Y, &SPR_TROPHY);
+    }
 }

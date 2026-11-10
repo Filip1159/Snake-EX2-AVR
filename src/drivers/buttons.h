@@ -4,8 +4,6 @@
  * 6 buttons on PA0–PA5, active low, internal pull-ups.
  * Scan at ~100 Hz, debounce 20 ms.
  * Provides press/release events and auto-repeat for menus.
- *
- * BACKLOG.MD §2.6 button mapping, §5 D3.
  */
 #ifndef DRIVERS_BUTTONS_H
 #define DRIVERS_BUTTONS_H

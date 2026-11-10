@@ -1,19 +1,18 @@
 /**
  * eeprom_store.cpp — Settings and High-Score Persistence
  *
- * Fixed layout (BACKLOG.MD §3.3), all multi-byte values little-endian:
+ * Fixed layout, all multi-byte values little-endian:
  *   0    magic "S2EX"
  *   4    version
  *   8    settings, 5 bytes: mode, maze(int8), speed, sound, backlight
  *   14   settings CRC16 (over bytes 8..12)
- *   32   classic high scores (2 x uint32)
- *   40   classic CRC16 (over 32..39)
- *   48   extreme high scores (2 x uint32)
- *   56   extreme CRC16 (over 48..55)
- *   64   resume slot (unused; also self-test scratch)
+ *   32   classic high scores (3 x uint32)
+ *   44   classic CRC16 (over 32..43)
+ *   48   extreme high scores (3 x uint32)
+ *   60   extreme CRC16 (over 48..59)
+ *   64   saved game (src/game/savegame.cpp, its own marker + CRC)
  *
  * Each block has its own CRC so a write only touches one block.
- * BACKLOG.MD §5 D5.
  */
 #include "drivers/eeprom_store.h"
 #include "config.h"
@@ -28,10 +27,10 @@
 #define EEP_SETTINGS_SIZE  5
 #define EEP_SETTINGS_CRC   14
 #define EEP_CLASSIC_OFF    32
-#define EEP_CLASSIC_CRC    40
+#define EEP_CLASSIC_CRC    44
 #define EEP_EXTREME_OFF    48
-#define EEP_EXTREME_CRC    56
-#define EEP_SCORE_BLOCK    8
+#define EEP_EXTREME_CRC    60
+#define EEP_SCORE_BLOCK    (4 * SCORES_PER_MODE)
 
 static const uint8_t MAGIC[4] = {'S', '2', 'E', 'X'};
 
@@ -47,7 +46,10 @@ static const settings_t DEFAULT_SETTINGS = {
 };
 
 uint16_t eeprom_crc16(const uint8_t *data, uint16_t len) {
-    uint16_t crc = 0xFFFF;
+    return eeprom_crc16_update(0xFFFF, data, len);
+}
+
+uint16_t eeprom_crc16_update(uint16_t crc, const uint8_t *data, uint16_t len) {
     for (uint16_t i = 0; i < len; i++) {
         crc ^= (uint16_t)data[i] << 8;
         for (uint8_t j = 0; j < 8; j++) {
@@ -101,8 +103,8 @@ static void store_settings(void) {
 }
 
 static void scores_to_bytes(uint8_t blk, uint8_t *b) {
-    for (uint8_t i = 0; i < 2; i++) {
-        uint32_t v = s_scores[blk * 2 + i];
+    for (uint8_t i = 0; i < SCORES_PER_MODE; i++) {
+        uint32_t v = s_scores[blk * SCORES_PER_MODE + i];
         for (uint8_t k = 0; k < 4; k++) b[i * 4 + k] = (uint8_t)(v >> (8 * k));
     }
 }
@@ -120,12 +122,12 @@ bool eeprom_load_scores(void) {
         uint8_t b[EEP_SCORE_BLOCK];
         bool good = read_block(blk ? EEP_EXTREME_OFF : EEP_CLASSIC_OFF,
                                blk ? EEP_EXTREME_CRC : EEP_CLASSIC_CRC, b, EEP_SCORE_BLOCK);
-        for (uint8_t i = 0; i < 2; i++) {
+        for (uint8_t i = 0; i < SCORES_PER_MODE; i++) {
             uint32_t v = 0;
             if (good) {
                 for (uint8_t k = 0; k < 4; k++) v |= (uint32_t)b[i * 4 + k] << (8 * k);
             }
-            s_scores[blk * 2 + i] = v;
+            s_scores[blk * SCORES_PER_MODE + i] = v;
         }
         if (!good) {
             ok = false;
@@ -194,6 +196,6 @@ void eeprom_set_score(uint8_t index, uint32_t score) {
     if (index >= HIGH_SCORE_COUNT) return;
     if (score > s_scores[index]) {
         s_scores[index] = score;
-        store_scores_block(index >> 1);
+        store_scores_block(index / SCORES_PER_MODE);
     }
 }

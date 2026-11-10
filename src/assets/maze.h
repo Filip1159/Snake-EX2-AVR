@@ -1,5 +1,5 @@
 /**
- * maze.h — Maze loader (BACKLOG §1.5, A3).
+ * maze.h — Maze loader.
  * Expands an original 21x18 4-bit map from flash to the derived 21x23 byte map.
  */
 #ifndef ASSETS_MAZE_H
